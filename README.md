@@ -1,49 +1,41 @@
-# PhysioGeo Merge Tool
+# PhysioGeo Studio
 
-A browser-only tool for merging GPS, EEG, HR, RR, and Mark files into a
-second-level aligned CSV.
+A browser-based toolkit for the Polite Study (Chicago Workshop): merge GPS,
+EEG, HR, RR, and Mark files into a second-level aligned CSV. Built with
+Vue 3 + Vite, deployed on GitHub Pages.
 
-## Input files
+**Live:** https://murmur0725.github.io/physiogeo-merge-tool/
 
-Upload these raw files:
+## Usage
 
-- Mark CSV: `展示时间`, `备注`
-- RR CSV: `timestamp`, `rr_ms`
-- EEG Excel: `Date/日期`, `时长(Duration)/秒(ss)`, `Time-set/时间集合`, EEG feature rows
-- GPX: `trkpt` latitude, longitude, and `time`
-- Heart-rate CSV: metadata `Date`, `Start time`, and sample columns `Time`, `HR (bpm)`
+1. Fill in 编号 (Subject ID) and 姓名 (Name).
+2. Upload the five raw files:
 
-CSV files exported from Chinese Windows Excel (GBK/ANSI encoded) are decoded
-automatically.
+   - Mark CSV: `展示时间`, `备注` (rows containing 开始 / 结束 define the output window)
+   - RR CSV: `timestamp`, `rr_ms`
+   - EEG Excel: `Date/日期`, `时长(Duration)/秒(ss)`, `Time-set/时间集合`, EEG feature rows
+   - GPX: `trkpt` latitude, longitude, and `time`
+   - Heart-rate CSV: metadata `Date`, `Start time`, and sample columns `Time`, `HR (bpm)`
 
-## Output
+3. Generate, preview, and download `编号姓名-merge.csv`.
 
-Fill in 编号 (Subject ID) and 姓名 (Name) before merging — the Generate button
-stays disabled until both are filled. The exported file is named
-`编号姓名-merge.csv` (for example `001张三-merge.csv`).
+All parsing happens locally in the browser. GBK/ANSI-encoded CSV exports are
+decoded automatically.
 
-Columns:
+## Development
 
-```text
-time, location, rr, attention, relaxation, delta, theta, low_alpha,
-high_alpha, low_beta, high_beta, low_gamma, mid_gamma, pitch, yaw,
-roll, sync_rate, mental_effort, familarity, temperature, heart_rate, Mark
+```bash
+npm install
+npm run dev      # local dev server
+npm run build    # production build → dist/
 ```
 
-## Privacy
+Pushing to `main` triggers a GitHub Actions workflow that builds and deploys
+to GitHub Pages automatically.
 
-All parsing and merging happens in the browser. Raw data is not uploaded to a
-server.
+## Roadmap
 
-## Publish on GitHub Pages
-
-1. Create a GitHub repository.
-2. Put `index.html` from this folder in the repository root.
-3. Commit and push.
-4. In GitHub, open **Settings → Pages**.
-5. Choose **Deploy from a branch**.
-6. Select the `main` branch and `/root`.
-7. Open the generated GitHub Pages URL.
-
-The page uses SheetJS from a CDN to parse Excel files, so the deployed page
-needs internet access.
+- **Map** — Mapbox GL track visualization with physiological overlays
+- **Street View** — Mapillary integration
+- **Survey** — questionnaire module
+- **Archive** — Supabase private storage for merged + raw data
