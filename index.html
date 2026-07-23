@@ -90,6 +90,14 @@
       font-size: 13px;
     }
 
+    input[type="text"] {
+      width: 100%;
+      font-size: 13px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+
     .hint {
       color: var(--muted);
       font-size: 12px;
@@ -281,6 +289,14 @@
 
       <div class="stack">
         <div class="drop">
+          <label for="subjectId">编号 (Subject ID)</label>
+          <input id="subjectId" type="text" placeholder="e.g. 001" autocomplete="off">
+          <label for="subjectName">姓名 (Name)</label>
+          <input id="subjectName" type="text" placeholder="e.g. 张三" autocomplete="off">
+          <div class="hint">Required before merging. The download will be named 编号姓名-merge.csv.</div>
+        </div>
+
+        <div class="drop">
           <label for="marksFile">Mark CSV</label>
           <input id="marksFile" type="file" accept=".csv">
           <div class="hint">Requires 展示时间 and 备注. The rows containing 开始 and 结束 define the output window.</div>
@@ -374,6 +390,7 @@
     };
 
     let latestCsv = "";
+    let latestSubject = { id: "", name: "" };
 
     const $ = (id) => document.getElementById(id);
     const logEl = $("log");
@@ -403,6 +420,17 @@
         reader.onerror = () => reject(reader.error);
         reader.readAsArrayBuffer(file);
       });
+    }
+
+    // CSV exports from Chinese Windows Excel are often GBK encoded; fall back
+    // to GBK when strict UTF-8 decoding fails so Chinese headers stay intact.
+    async function readTextSmart(file) {
+      const buffer = await readArrayBuffer(file);
+      try {
+        return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+      } catch {
+        return new TextDecoder("gbk").decode(buffer);
+      }
     }
 
     function parseCsv(text) {
@@ -502,14 +530,22 @@
     }
 
     async function loadMarks(file) {
-      const objects = rowsToObjects(parseCsv(await readText(file)));
+      const rows = parseCsv(await readTextSmart(file));
+      const headers = rows.length ? rows[0].map((h) => String(h).trim()) : [];
+      if (!headers.includes("展示时间") || !headers.includes("备注")) {
+        throw new Error(`Mark CSV missing 展示时间/备注 columns. Found headers: ${headers.join(" | ") || "(none)"}. Check the file uses commas as delimiters.`);
+      }
+      const objects = rowsToObjects(rows);
       const marks = objects.map((row) => ({
         time: formatTime(toSecond(parseLocalDateTime(row["展示时间"]))),
         mark: row["备注"] || ""
       })).sort((a, b) => a.time.localeCompare(b.time));
       const start = marks.find((m) => m.mark.includes("开始"));
       const end = [...marks].reverse().find((m) => m.mark.includes("结束"));
-      if (!start || !end) throw new Error("Mark CSV must contain 开始 and 结束 in 备注.");
+      if (!start || !end) {
+        const seen = marks.map((m) => m.mark).filter(Boolean).slice(0, 10).join(" | ") || "(empty)";
+        throw new Error(`Mark CSV must contain 开始 and 结束 in 备注. Found 备注 values: ${seen}`);
+      }
       const clipped = marks.filter((m) => m.time >= start.time && m.time <= end.time);
       const map = new Map();
       clipped.forEach((m) => {
@@ -519,7 +555,7 @@
     }
 
     async function loadRR(file) {
-      const objects = rowsToObjects(parseCsv(await readText(file)));
+      const objects = rowsToObjects(parseCsv(await readTextSmart(file)));
       const groups = new Map();
       objects.forEach((row) => {
         const key = formatTime(toSecond(parseLocalDateTime(row.timestamp)));
@@ -575,7 +611,7 @@
     }
 
     async function loadHeartRate(file) {
-      const rows = parseCsv(await readText(file));
+      const rows = parseCsv(await readTextSmart(file));
       const meta = {};
       rows[0].forEach((key, index) => {
         meta[key] = rows[1][index] ?? "";
@@ -657,6 +693,13 @@
         $("downloadBtn").disabled = true;
         latestCsv = "";
 
+        const subjectId = $("subjectId").value.trim();
+        const subjectName = $("subjectName").value.trim();
+        if (!subjectId) throw new Error("请填写编号 / Please fill in 编号 (Subject ID) first.");
+        if (!subjectName) throw new Error("请填写姓名 / Please fill in 姓名 (Name) first.");
+        latestSubject = { id: subjectId, name: subjectName };
+        log(`Subject: ${subjectId} ${subjectName}`);
+
         const marksFile = requireFile("marksFile", "a Mark CSV");
         const rrFile = requireFile("rrFile", "an RR CSV");
         const eegFile = requireFile("eegFile", "an EEG Excel file");
@@ -707,16 +750,25 @@
 
     $("downloadBtn").addEventListener("click", () => {
       if (!latestCsv) return;
+      const clean = (s) => s.replace(/[\\/:*?"<>|]/g, "_");
       const blob = new Blob([latestCsv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "merged_time_location_rr_eeg_features.csv";
+      link.download = `${clean(latestSubject.id)}${clean(latestSubject.name)}-merge.csv`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
     });
+
+    // The merge can only start once 编号 and 姓名 are both filled in.
+    function updateMergeState() {
+      $("mergeBtn").disabled = !$("subjectId").value.trim() || !$("subjectName").value.trim();
+    }
+    $("subjectId").addEventListener("input", updateMergeState);
+    $("subjectName").addEventListener("input", updateMergeState);
+    updateMergeState();
   </script>
 </body>
 </html>

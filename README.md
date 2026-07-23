@@ -13,13 +13,14 @@ Upload these raw files:
 - GPX: `trkpt` latitude, longitude, and `time`
 - Heart-rate CSV: metadata `Date`, `Start time`, and sample columns `Time`, `HR (bpm)`
 
+CSV files exported from Chinese Windows Excel (GBK/ANSI encoded) are decoded
+automatically.
+
 ## Output
 
-The exported file is:
-
-```text
-merged_time_location_rr_eeg_features.csv
-```
+Fill in 编号 (Subject ID) and 姓名 (Name) before merging — the Generate button
+stays disabled until both are filled. The exported file is named
+`编号姓名-merge.csv` (for example `001张三-merge.csv`).
 
 Columns:
 
