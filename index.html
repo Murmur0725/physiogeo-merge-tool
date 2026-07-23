@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PhysioGeo Merge Tool</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f7f8;
+      --surface: #ffffff;
+      --ink: #1f2933;
+      --muted: #667085;
+      --line: #d9dee5;
+      --accent: #0f766e;
+      --accent-dark: #115e59;
+      --warn: #9a3412;
+      --soft: #eaf5f3;
+      --shadow: 0 18px 48px rgba(31, 41, 51, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+    }
+
+    aside {
+      background: var(--surface);
+      border-right: 1px solid var(--line);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      z-index: 1;
+    }
+
+    section {
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+      font-weight: 700;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      font-weight: 650;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .drop {
+      border: 1px solid var(--line);
+      background: #fbfcfd;
+      border-radius: 8px;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      font-size: 13px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    button, .button {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 10px 13px;
+      font-size: 14px;
+      font-weight: 650;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+
+    button.primary:hover {
+      background: var(--accent-dark);
+    }
+
+    button:disabled, .button.disabled {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    .notice {
+      border-left: 4px solid var(--accent);
+      background: var(--soft);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .metric {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 21px;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-head p {
+      font-size: 13px;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 520px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #eef2f6;
+      z-index: 1;
+      font-weight: 700;
+    }
+
+    td.empty {
+      color: var(--muted);
+    }
+
+    .log {
+      background: #17202a;
+      color: #e8f0f2;
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 96px;
+      max-height: 220px;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .range {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .grid {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+      }
+    }
+
+    @media (max-width: 520px) {
+      aside, section {
+        padding: 16px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <aside class="stack">
+      <div>
+        <h1>PhysioGeo Merge Tool</h1>
+        <p>Merge GPS, EEG, HR, RR, and Mark files into a second-level aligned CSV directly in the browser.</p>
+      </div>
+
+      <div class="notice">
+        Files stay on this computer. The page does not upload raw location or physiological data to a server.
+      </div>
+
+      <div class="stack">
+        <div class="drop">
+          <label for="marksFile">Mark CSV</label>
+          <input id="marksFile" type="file" accept=".csv">
+          <div class="hint">Requires 展示时间 and 备注. The rows containing 开始 and 结束 define the output window.</div>
+        </div>
+
+        <div class="drop">
+          <label for="rrFile">RR CSV</label>
+          <input id="rrFile" type="file" accept=".csv">
+          <div class="hint">Requires timestamp and rr_ms. Multiple values in the same second are averaged.</div>
+        </div>
+
+        <div class="drop">
+          <label for="eegFile">EEG Excel</label>
+          <input id="eegFile" type="file" accept=".xlsx,.xls">
+          <div class="hint">Uses Date/日期, 时长(Duration)/秒(ss), Time-set/时间集合, and EEG feature rows.</div>
+        </div>
+
+        <div class="drop">
+          <label for="gpxFile">GPS GPX</label>
+          <input id="gpxFile" type="file" accept=".gpx,.xml">
+          <div class="hint">Uses trkpt lat/lon and time. GPX UTC time is converted to local time.</div>
+        </div>
+
+        <div class="drop">
+          <label for="hrFile">Heart Rate CSV</label>
+          <input id="hrFile" type="file" accept=".csv,.CSV">
+          <div class="hint">Uses Date, Start time, Time, and HR (bpm).</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="mergeBtn" class="primary" type="button">Generate Merge CSV</button>
+        <button id="downloadBtn" type="button" disabled>Download CSV</button>
+      </div>
+    </aside>
+
+    <section class="stack">
+      <div class="grid">
+        <div class="metric"><span>Rows</span><strong id="rowsMetric">--</strong></div>
+        <div class="metric"><span>GPS rows</span><strong id="gpsMetric">--</strong></div>
+        <div class="metric"><span>RR rows</span><strong id="rrMetric">--</strong></div>
+        <div class="metric"><span>EEG rows</span><strong id="eegMetric">--</strong></div>
+        <div class="metric"><span>HR rows</span><strong id="hrMetric">--</strong></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Preview</h2>
+            <p id="rangeText" class="range">Upload the files and generate a merge table.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="previewTable" aria-label="Merged data preview"></table>
+        </div>
+      </div>
+
+      <div>
+        <h2>Processing Log</h2>
+        <div id="log" class="log">Ready.</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const finalColumns = [
+      "time", "location", "rr", "attention", "relaxation", "delta", "theta",
+      "low_alpha", "high_alpha", "low_beta", "high_beta", "low_gamma",
+      "mid_gamma", "pitch", "yaw", "roll", "sync_rate", "mental_effort",
+      "familarity", "temperature", "heart_rate", "Mark"
+    ];
+
+    const eegRows = {
+      "Attention/注意力": "attention",
+      "Relaxation/放松度": "relaxation",
+      "Delta/δ波": "delta",
+      "Theta/θ波": "theta",
+      "Low-Alpha/低α波": "low_alpha",
+      "High-Alpha/高α波": "high_alpha",
+      "Low-Beta/低β波": "low_beta",
+      "High-Beta/高β波": "high_beta",
+      "Low-Gamma/低γ波": "low_gamma",
+      "Mid-Gamma/高γ波": "mid_gamma",
+      "Pitch/俯仰角": "pitch",
+      "Yaw/偏航角": "yaw",
+      "Roll/滚转角": "roll",
+      "SyncRate/同步率": "sync_rate",
+      "MentalEffort/用脑度": "mental_effort",
+      "Familarity/熟练度": "familarity",
+      "temperature/体温": "temperature"
+    };
+
+    let latestCsv = "";
+
+    const $ = (id) => document.getElementById(id);
+    const logEl = $("log");
+
+    function log(message) {
+      logEl.textContent += "\\n" + message;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function resetLog() {
+      logEl.textContent = "Processing...";
+    }
+
+    function readText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file, "utf-8");
+      });
+    }
+
+    function readArrayBuffer(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let quoted = false;
+      const input = text.replace(/^\\uFEFF/, "");
+      for (let i = 0; i < input.length; i += 1) {
+        const ch = input[i];
+        const next = input[i + 1];
+        if (quoted) {
+          if (ch === '"' && next === '"') {
+            cell += '"';
+            i += 1;
+          } else if (ch === '"') {
+            quoted = false;
+          } else {
+            cell += ch;
+          }
+        } else if (ch === '"') {
+          quoted = true;
+        } else if (ch === ",") {
+          row.push(cell);
+          cell = "";
+        } else if (ch === "\\n") {
+          row.push(cell);
+          rows.push(row);
+          row = [];
+          cell = "";
+        } else if (ch !== "\\r") {
+          cell += ch;
+        }
+      }
+      if (cell.length || row.length) {
+        row.push(cell);
+        rows.push(row);
+      }
+      return rows.filter((items) => items.some((item) => String(item).trim() !== ""));
+    }
+
+    function rowsToObjects(rows) {
+      const headers = rows[0].map((h) => String(h).trim());
+      return rows.slice(1).map((row) => {
+        const out = {};
+        headers.forEach((h, i) => {
+          out[h] = row[i] ?? "";
+        });
+        return out;
+      });
+    }
+
+    function parseLocalDateTime(value) {
+      const text = String(value).trim().replace("T", " ").replace(/\\.\\d+$/, "");
+      const [datePart, timePart = "00:00:00"] = text.split(" ");
+      const [y, m, d] = datePart.split("-").map(Number);
+      const [hh, mm, ss] = timePart.split(":").map(Number);
+      return new Date(y, m - 1, d, hh || 0, mm || 0, ss || 0, 0);
+    }
+
+    function pad(n) {
+      return String(n).padStart(2, "0");
+    }
+
+    function formatTime(date) {
+      return [
+        date.getFullYear(),
+        pad(date.getMonth() + 1),
+        pad(date.getDate())
+      ].join("-") + " " + [pad(date.getHours()), pad(date.getMinutes()), pad(date.getSeconds())].join(":");
+    }
+
+    function toSecond(date) {
+      return new Date(Math.floor(date.getTime() / 1000) * 1000);
+    }
+
+    function parseDurationSeconds(value) {
+      const parts = String(value).trim().split(":").map(Number);
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+      return Number(value) || 0;
+    }
+
+    function splitSeries(value) {
+      if (value === undefined || value === null || value === "") return [];
+      return String(value).split(",").filter((item) => item !== "");
+    }
+
+    function parseNumber(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : "";
+    }
+
+    function mean(values) {
+      const nums = values.map(Number).filter(Number.isFinite);
+      return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : "";
+    }
+
+    async function loadMarks(file) {
+      const objects = rowsToObjects(parseCsv(await readText(file)));
+      const marks = objects.map((row) => ({
+        time: formatTime(toSecond(parseLocalDateTime(row["展示时间"]))),
+        mark: row["备注"] || ""
+      })).sort((a, b) => a.time.localeCompare(b.time));
+      const start = marks.find((m) => m.mark.includes("开始"));
+      const end = [...marks].reverse().find((m) => m.mark.includes("结束"));
+      if (!start || !end) throw new Error("Mark CSV must contain 开始 and 结束 in 备注.");
+      const clipped = marks.filter((m) => m.time >= start.time && m.time <= end.time);
+      const map = new Map();
+      clipped.forEach((m) => {
+        map.set(m.time, map.has(m.time) ? `${map.get(m.time)} | ${m.mark}` : m.mark);
+      });
+      return { start: start.time, end: end.time, map };
+    }
+
+    async function loadRR(file) {
+      const objects = rowsToObjects(parseCsv(await readText(file)));
+      const groups = new Map();
+      objects.forEach((row) => {
+        const key = formatTime(toSecond(parseLocalDateTime(row.timestamp)));
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(parseNumber(row.rr_ms));
+      });
+      const map = new Map();
+      groups.forEach((values, key) => map.set(key, Math.round(mean(values) * 1000) / 1000));
+      return map;
+    }
+
+    async function loadGPX(file) {
+      const text = await readText(file);
+      const xml = new DOMParser().parseFromString(text, "application/xml");
+      const points = [...xml.getElementsByTagName("trkpt")].map((node) => {
+        const timeNode = node.getElementsByTagName("time")[0];
+        const time = timeNode ? formatTime(toSecond(new Date(timeNode.textContent))) : "";
+        return {
+          time,
+          ms: time ? parseLocalDateTime(time).getTime() : NaN,
+          lat: Number(node.getAttribute("lat")),
+          lon: Number(node.getAttribute("lon"))
+        };
+      }).filter((p) => p.time && Number.isFinite(p.lat) && Number.isFinite(p.lon));
+      points.sort((a, b) => a.ms - b.ms);
+      return points;
+    }
+
+    async function loadEEG(file) {
+      const buffer = await readArrayBuffer(file);
+      const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, blankrows: false });
+      const dict = {};
+      rows.forEach((row) => {
+        if (row[0] !== undefined && row[0] !== null) dict[String(row[0]).trim()] = row[1] ?? "";
+      });
+      const recordEnd = parseLocalDateTime(dict["Date/日期"]);
+      const duration = Number(dict["时长(Duration)/秒(ss)"]);
+      const eegStart = new Date(recordEnd.getTime() - duration * 1000);
+      const offsets = splitSeries(dict["Time-set/时间集合"]).map((item) => Number(item));
+      const map = new Map();
+      Object.entries(eegRows).forEach(([sourceName, finalName]) => {
+        const values = splitSeries(dict[sourceName]);
+        values.slice(0, offsets.length).forEach((value, index) => {
+          const sample = formatTime(toSecond(new Date(eegStart.getTime() + offsets[index] * 1000)));
+          const row = map.get(sample) || {};
+          row[finalName] = parseNumber(value);
+          map.set(sample, row);
+        });
+      });
+      return map;
+    }
+
+    async function loadHeartRate(file) {
+      const rows = parseCsv(await readText(file));
+      const meta = {};
+      rows[0].forEach((key, index) => {
+        meta[key] = rows[1][index] ?? "";
+      });
+      const start = parseLocalDateTime(`${meta.Date} ${meta["Start time"]}`);
+      const sampleObjects = rowsToObjects(rows.slice(2));
+      const map = new Map();
+      sampleObjects.forEach((row) => {
+        const seconds = parseDurationSeconds(row.Time);
+        const key = formatTime(toSecond(new Date(start.getTime() + seconds * 1000)));
+        map.set(key, parseNumber(row["HR (bpm)"]));
+      });
+      return map;
+    }
+
+    function buildTimeline(start, end) {
+      const rows = [];
+      const startMs = parseLocalDateTime(start).getTime();
+      const endMs = parseLocalDateTime(end).getTime();
+      for (let ms = startMs; ms <= endMs; ms += 1000) {
+        rows.push({ time: formatTime(new Date(ms)) });
+      }
+      return rows;
+    }
+
+    function attachLocation(rows, points) {
+      if (!points.length) return;
+      let cursor = 0;
+      rows.forEach((row) => {
+        const ms = parseLocalDateTime(row.time).getTime();
+        while (cursor < points.length - 2 && points[cursor + 1].ms < ms) cursor += 1;
+        const before = points[cursor];
+        const after = points[cursor + 1];
+        if (!before || !after || ms < points[0].ms || ms > points[points.length - 1].ms) return;
+        const span = after.ms - before.ms;
+        const ratio = span ? (ms - before.ms) / span : 0;
+        const lat = before.lat + (after.lat - before.lat) * ratio;
+        const lon = before.lon + (after.lon - before.lon) * ratio;
+        row.location = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+      });
+    }
+
+    function toCsv(rows) {
+      const escapeCell = (value) => {
+        const text = value === undefined || value === null ? "" : String(value);
+        return /[",\\n\\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+      };
+      const lines = [finalColumns.join(",")];
+      rows.forEach((row) => {
+        lines.push(finalColumns.map((column) => escapeCell(row[column])).join(","));
+      });
+      return "\\uFEFF" + lines.join("\\n") + "\\n";
+    }
+
+    function setMetric(id, value) {
+      $(id).textContent = value;
+    }
+
+    function renderPreview(rows) {
+      const table = $("previewTable");
+      const preview = rows.slice(0, 80);
+      const head = `<thead><tr>${finalColumns.map((c) => `<th>${c}</th>`).join("")}</tr></thead>`;
+      const body = `<tbody>${preview.map((row) => `<tr>${finalColumns.map((c) => {
+        const value = row[c] ?? "";
+        return `<td class="${value === "" ? "empty" : ""}">${value === "" ? "·" : value}</td>`;
+      }).join("")}</tr>`).join("")}</tbody>`;
+      table.innerHTML = head + body;
+    }
+
+    function requireFile(id, label) {
+      const file = $(id).files[0];
+      if (!file) throw new Error(`Please select ${label}.`);
+      return file;
+    }
+
+    $("mergeBtn").addEventListener("click", async () => {
+      try {
+        resetLog();
+        $("downloadBtn").disabled = true;
+        latestCsv = "";
+
+        const marksFile = requireFile("marksFile", "a Mark CSV");
+        const rrFile = requireFile("rrFile", "an RR CSV");
+        const eegFile = requireFile("eegFile", "an EEG Excel file");
+        const gpxFile = requireFile("gpxFile", "a GPX file");
+        const hrFile = requireFile("hrFile", "a Heart Rate CSV");
+
+        log("Reading Mark file...");
+        const marks = await loadMarks(marksFile);
+        const rows = buildTimeline(marks.start, marks.end);
+
+        log("Reading RR file...");
+        const rr = await loadRR(rrFile);
+        log("Reading EEG file...");
+        const eeg = await loadEEG(eegFile);
+        log("Reading GPX file...");
+        const gpx = await loadGPX(gpxFile);
+        log("Reading Heart Rate file...");
+        const heartRate = await loadHeartRate(hrFile);
+
+        rows.forEach((row) => {
+          row.rr = rr.get(row.time) ?? "";
+          Object.assign(row, eeg.get(row.time) || {});
+          row.heart_rate = heartRate.get(row.time) ?? "";
+          row.Mark = marks.map.get(row.time) ?? "";
+        });
+        attachLocation(rows, gpx);
+        rows.forEach((row) => {
+          finalColumns.forEach((column) => {
+            if (row[column] === undefined || row[column] === null) row[column] = "";
+          });
+        });
+
+        latestCsv = toCsv(rows);
+        $("downloadBtn").disabled = false;
+
+        setMetric("rowsMetric", rows.length);
+        setMetric("gpsMetric", rows.filter((r) => r.location).length);
+        setMetric("rrMetric", rows.filter((r) => r.rr !== "").length);
+        setMetric("eegMetric", rows.filter((r) => r.attention !== "").length);
+        setMetric("hrMetric", rows.filter((r) => r.heart_rate !== "").length);
+        $("rangeText").textContent = `${rows[0].time} to ${rows[rows.length - 1].time}`;
+        renderPreview(rows);
+        log("Done. Preview is showing the first 80 rows.");
+      } catch (error) {
+        log(`ERROR: ${error.message}`);
+      }
+    });
+
+    $("downloadBtn").addEventListener("click", () => {
+      if (!latestCsv) return;
+      const blob = new Blob([latestCsv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "merged_time_location_rr_eeg_features.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>
