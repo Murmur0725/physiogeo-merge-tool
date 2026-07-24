@@ -23,7 +23,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      # npm install instead of npm ci: lockfiles generated on macOS can drop
+      # Linux-only optional deps (npm lockfile bug), which breaks npm ci.
+      - run: npm install --no-audit --no-fund
       - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
