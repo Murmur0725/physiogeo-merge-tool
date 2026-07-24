@@ -2,7 +2,7 @@
 import { ref, reactive, computed } from "vue";
 import FileDrop from "../components/FileDrop.vue";
 import { runMergeWithBaseline, finalColumns, safeFilePart } from "../lib/merge";
-import { archiveBaseline, isArchiveConfigured } from "../lib/archive";
+import { archiveSession, isArchiveConfigured } from "../lib/archive";
 
 const subjectId = ref("");
 const subjectName = ref("");
@@ -20,7 +20,7 @@ const files = reactive({ marks: null, rr: null, eeg: null, gpx: null, hr: null }
 const running = ref(false);
 const rows = ref([]);
 const csv = ref("");
-const logs = ref(["Ready. 填写编号和姓名,上传 5 个文件后开始。网站仅导出 CD merge；AB baseline 后台入库，不可下载。"]);
+const logs = ref(["Ready. 填写编号和姓名,上传 5 个文件后开始。网站仅下载 CD merge；CD/AB/原始数据后台入库。"]);
 const metrics = reactive({ rows: "--", gps: "--", rr: "--", eeg: "--", hr: "--" });
 const rangeText = ref("");
 const baselineStatus = ref("");
@@ -59,7 +59,7 @@ async function generate() {
     const id = subjectId.value.trim();
     const name = subjectName.value.trim();
     log(`Subject: ${id} ${name}`);
-    log("截断窗口: C→D（网站 merge）；后台并行对齐 A→B（baseline，不可下载）");
+    log("截断窗口: C→D（网站 merge）；后台对齐 A→B，并归档 CD + AB + 原始文件");
 
     const { experiment, baseline } = await runMergeWithBaseline(files, log);
 
@@ -69,23 +69,21 @@ async function generate() {
     Object.assign(metrics, experiment.metrics);
     rangeText.value = `CD ${experiment.range}`;
 
-    if (baseline) {
-      log(`Baseline AB ready in memory (${baseline.metrics.rows} rows) — archiving privately…`);
-      const archived = await archiveBaseline({
-        subjectId: id,
-        subjectName: name,
-        csv: baseline.csv,
-        metrics: baseline.metrics,
-        range: baseline.range,
-        windowLabel: baseline.label
-      });
-      baselineStatus.value = archived.reason;
-      log(archived.ok ? `OK: ${archived.reason}` : `Baseline archive: ${archived.reason}`);
-      if (!isArchiveConfigured()) {
-        log("提示: 配置 VITE_SUPABASE_* 后，Generate 时会自动把 AB baseline 写入私有库。");
-      }
-    } else {
-      baselineStatus.value = "未生成 baseline（Mark 缺少 A/B）";
+    log("Archiving CD merge + AB baseline + raw files to private DB…");
+    const archived = await archiveSession({
+      subjectId: id,
+      subjectName: name,
+      experiment,
+      baseline,
+      files
+    });
+    baselineStatus.value = archived.reason;
+    log(archived.ok ? `OK: ${archived.reason}` : `Archive: ${archived.reason}`);
+    if (archived.experiment) log(`  · CD: ${archived.experiment.reason || (archived.experiment.ok ? "ok" : "fail")}`);
+    if (archived.baseline) log(`  · AB: ${archived.baseline.reason || (archived.baseline.ok ? "ok" : "fail")}`);
+    if (archived.raw) log(`  · raw: ${archived.raw.reason}`);
+    if (!isArchiveConfigured()) {
+      log("提示: 配置 VITE_SUPABASE_* 并执行 002_expand_archive_kinds.sql 后可入库。");
     }
 
     log(`Done. 预览/下载仅为 CD merge（前 ${Math.min(PREVIEW_LIMIT, experiment.rows.length)} 行）。`);
@@ -136,7 +134,7 @@ function download() {
           :file="files[spec.key]"
           @select="(f) => (files[spec.key] = f)"
         />
-        <p class="hint">解析在浏览器本地完成。CD merge 可下载；AB baseline 仅后台入库，网站无下载入口。</p>
+        <p class="hint">解析在浏览器本地完成。仅 CD 可本地下载；CD merge、AB baseline、原始 5 文件均后台入库。</p>
       </section>
 
       <div class="actions">

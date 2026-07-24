@@ -21,32 +21,45 @@ Vue 3 + Vite, deployed on GitHub Pages.
    - Heart-rate CSV: metadata `Date`, `Start time`, and sample columns `Time`, `HR (bpm)`
 
 3. Generate:
-   - Preview + **Download CD Merge** → `编号姓名-merge.csv` (C→D only)
-   - AB baseline is generated in the background and uploaded to private Supabase
-     storage / `merge_artifacts` (website has **no** baseline download button)
+   - Preview + **Download CD Merge** → `编号姓名-merge.csv` (C→D only; website download)
+   - Background private archive (no website download from DB):
+     - `experiment_cd` — CD merge CSV
+     - `baseline_ab` — AB baseline CSV
+     - `raw` — the five uploaded input files (marks/rr/eeg/gpx/hr)
 
 All parsing happens locally in the browser. GBK/ANSI-encoded CSV exports are
-decoded automatically. Baseline binary leaves the browser only when Supabase
+decoded automatically. Archive uploads leave the browser only when Supabase
 env vars are configured (insert-only; anon cannot SELECT).
 
-## Baseline archive (private)
+## Private archive
 
-1. Apply `supabase/migrations/001_merge_artifacts.sql` in your Supabase project.
+1. Apply migrations in order:
+   - `supabase/migrations/001_merge_artifacts.sql`
+   - `supabase/migrations/002_expand_archive_kinds.sql`
 2. Copy `.env.example` → `.env.local` and set:
 
    ```bash
    VITE_SUPABASE_URL=...
-   VITE_SUPABASE_ANON_KEY=...
+   VITE_SUPABASE_ANON_KEY=...   # publishable/anon — never secret
    ```
 
-3. Researchers fetch baseline with the service role (never in the website):
+3. Researchers fetch with the service role (never in the website):
 
    ```bash
    export SUPABASE_URL=...
    export SUPABASE_SERVICE_ROLE_KEY=...
-   python3 scripts/fetch_baseline.py --list
-   python3 scripts/fetch_baseline.py --subject 001 --out ./baselines
+   python3 scripts/fetch_baseline.py --list --kind all
+   python3 scripts/fetch_baseline.py --subject 001 --kind experiment_cd --out ./exports
+   python3 scripts/fetch_baseline.py --subject 001 --kind raw --out ./raws
    ```
+
+Storage layout under bucket `merge-private`:
+
+```text
+baseline/{subjectId}/...-baseline-ab-....csv
+experiment/{subjectId}/...-merge-cd-....csv
+raw/{subjectId}/{stamp}_{marks|rr|eeg|gpx|hr}_{original}
+```
 
 ## CLI (Python, same windows)
 

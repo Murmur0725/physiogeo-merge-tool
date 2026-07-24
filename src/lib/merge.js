@@ -339,7 +339,12 @@ function toCsv(rows) {
 }
 
 export function safeFilePart(s) {
-  return String(s).replace(/[\\/:*?"<>|]/g, "_");
+  return String(s)
+    .normalize("NFKD")
+    .replace(/[^\w.\-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^[_\.]+|[_\.]+$/g, "")
+    || "file";
 }
 
 function assembleRows(timeline, { rr, eeg, gpx, heartRate, marks }) {
