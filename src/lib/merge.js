@@ -347,6 +347,18 @@ export function safeFilePart(s) {
     || "file";
 }
 
+function forwardFill(rows, key) {
+  let last = "";
+  rows.forEach((row) => {
+    const value = row[key];
+    if (value !== "" && value !== undefined && value !== null) {
+      last = value;
+    } else if (last !== "") {
+      row[key] = last;
+    }
+  });
+}
+
 function assembleRows(timeline, { rr, eeg, gpx, heartRate, marks }) {
   const rows = timeline.map((row) => ({ ...row }));
   rows.forEach((row) => {
@@ -355,6 +367,8 @@ function assembleRows(timeline, { rr, eeg, gpx, heartRate, marks }) {
     row.heart_rate = heartRate.get(row.time) ?? "";
     row.Mark = marks.map.get(row.time) ?? "";
   });
+  // RR samples are sparser than 1 Hz — carry the last known rr_ms forward.
+  forwardFill(rows, "rr");
   attachLocation(rows, gpx);
   rows.forEach((row) => {
     finalColumns.forEach((column) => {

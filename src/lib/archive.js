@@ -64,6 +64,36 @@ function extensionOf(name, fallback) {
   return match ? match[1].toLowerCase() : fallback;
 }
 
+function isDuplicateObjectError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    message.includes("already exists")
+    || message.includes("duplicate")
+    || message.includes("resource already exists")
+    || error?.statusCode === "409"
+    || error?.status === 409
+  );
+}
+
+async function uploadObject(client, storagePath, body, contentType) {
+  // Never use upsert:true — Supabase Storage upsert requires SELECT RLS,
+  // which would let the website download private archives.
+  let { error } = await client.storage
+    .from(BUCKET)
+    .upload(storagePath, body, { contentType, upsert: false });
+
+  if (!error) return null;
+
+  if (isDuplicateObjectError(error)) {
+    await client.storage.from(BUCKET).remove([storagePath]);
+    ({ error } = await client.storage
+      .from(BUCKET)
+      .upload(storagePath, body, { contentType, upsert: false }));
+  }
+
+  return error;
+}
+
 async function uploadAndRegister(client, {
   subjectId,
   subjectName,
@@ -75,12 +105,14 @@ async function uploadAndRegister(client, {
   metrics,
   range
 }) {
-  const { error: uploadError } = await client.storage
-    .from(BUCKET)
-    .upload(storagePath, body, { contentType, upsert: true });
+  const uploadError = await uploadObject(client, storagePath, body, contentType);
 
   if (uploadError) {
-    return { ok: false, skipped: false, reason: `Storage upload failed (${kind}): ${uploadError.message}` };
+    return {
+      ok: false,
+      skipped: false,
+      reason: `Storage upload failed (${kind}): ${uploadError.message}`
+    };
   }
 
   // Do not .select() after insert: anon has INSERT-only RLS (no SELECT).
