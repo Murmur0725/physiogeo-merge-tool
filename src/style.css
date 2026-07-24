@@ -102,57 +102,6 @@ body {
   text-transform: uppercase;
 }
 
-.nav {
-  display: flex;
-  gap: 4px;
-  margin-left: auto;
-}
-
-.nav a {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 14px;
-  border-radius: 9px;
-  color: var(--muted);
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 600;
-  transition: color 0.15s, background 0.15s;
-}
-
-.nav a:hover {
-  color: var(--ink);
-  background: var(--panel-hover);
-}
-
-.nav a.active {
-  color: var(--ink);
-  background: var(--panel-hover);
-}
-
-.nav a.active::after {
-  content: "";
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 3px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--rainbow);
-}
-
-.soon-tag {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  padding: 2px 5px;
-  border-radius: 5px;
-  color: var(--faint);
-  border: 1px solid var(--line);
-}
-
 /* ---------- Cards & panels ---------- */
 
 .card {

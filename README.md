@@ -91,7 +91,4 @@ upload in production.
 
 ## Roadmap
 
-- **Map** — Mapbox GL track visualization with physiological overlays
-- **Street View** — Mapillary integration
-- **Survey** — questionnaire module
-- **Archive** — Supabase private storage for baseline (+ optional CD) ✅ schema ready
+- **Archive** — Supabase private storage for CD merge + baseline + raw ✅
