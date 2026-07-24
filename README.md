@@ -56,10 +56,17 @@ env vars are configured (insert-only; anon cannot SELECT).
 Storage layout under bucket `merge-private`:
 
 ```text
-baseline/{subjectId}/...-baseline-ab-....csv
-experiment/{subjectId}/...-merge-cd-....csv
-raw/{subjectId}/{stamp}_{marks|rr|eeg|gpx|hr}_{original}
+experiment/{编号}-{姓名}-experiment.csv
+baseline/{编号}-{姓名}-baseline.csv
+raw/{编号}-{姓名}/
+  marks.csv
+  rr.csv
+  eeg.xlsx
+  gpx.gpx
+  hr.csv
 ```
+
+（姓名若含中文/特殊字符，路径里会转成安全 ASCII；`upsert` 覆盖同名文件。）
 
 ## CLI (Python, same windows)
 

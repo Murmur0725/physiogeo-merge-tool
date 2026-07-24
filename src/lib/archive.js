@@ -1,9 +1,13 @@
 /**
  * Private archive for merge + raw files.
  *
- * Website may INSERT artifacts (baseline AB, experiment CD, raw inputs) when
- * Supabase is configured, but RLS denies public SELECT/download. Researchers
- * retrieve files from the Supabase dashboard / service-role scripts only.
+ * Storage layout:
+ *   experiment/{编号}-{姓名}-experiment.csv
+ *   baseline/{编号}-{姓名}-baseline.csv
+ *   raw/{编号}-{姓名}/marks|rr|eeg|gpx|hr.{ext}
+ *
+ * Website may INSERT artifacts when Supabase is configured, but RLS denies
+ * public SELECT/download. Researchers use Dashboard / service-role scripts.
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -12,11 +16,11 @@ import { safeFilePart } from "./merge";
 const BUCKET = "merge-private";
 
 const RAW_SLOTS = [
-  { key: "marks", label: "marks" },
-  { key: "rr", label: "rr" },
-  { key: "eeg", label: "eeg" },
-  { key: "gpx", label: "gpx" },
-  { key: "hr", label: "hr" }
+  { key: "marks", label: "marks", fallbackExt: ".csv" },
+  { key: "rr", label: "rr", fallbackExt: ".csv" },
+  { key: "eeg", label: "eeg", fallbackExt: ".xlsx" },
+  { key: "gpx", label: "gpx", fallbackExt: ".gpx" },
+  { key: "hr", label: "hr", fallbackExt: ".csv" }
 ];
 
 function getClient() {
@@ -30,6 +34,11 @@ function getClient() {
 
 export function isArchiveConfigured() {
   return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+}
+
+/** Stable subject key for paths: 编号-姓名 (ASCII-safe). */
+export function subjectStorageKey(subjectId, subjectName) {
+  return `${safeFilePart(subjectId)}-${safeFilePart(subjectName)}`;
 }
 
 function notConfigured(what) {
@@ -50,24 +59,25 @@ function contentTypeForName(name) {
   return "application/octet-stream";
 }
 
+function extensionOf(name, fallback) {
+  const match = String(name || "").match(/(\.[A-Za-z0-9]+)$/);
+  return match ? match[1].toLowerCase() : fallback;
+}
+
 async function uploadAndRegister(client, {
   subjectId,
   subjectName,
   kind,
-  folder,
-  fileName,
+  storagePath,
   body,
   contentType,
   windowLabel,
   metrics,
   range
 }) {
-  const idPart = safeFilePart(subjectId);
-  const storagePath = `${folder}/${idPart}/${fileName}`;
-
   const { error: uploadError } = await client.storage
     .from(BUCKET)
-    .upload(storagePath, body, { contentType, upsert: false });
+    .upload(storagePath, body, { contentType, upsert: true });
 
   if (uploadError) {
     return { ok: false, skipped: false, reason: `Storage upload failed (${kind}): ${uploadError.message}` };
@@ -89,19 +99,15 @@ async function uploadAndRegister(client, {
     });
 
   if (insertError) {
-    await client.storage.from(BUCKET).remove([storagePath]);
     return { ok: false, skipped: false, reason: `DB insert failed (${kind}): ${insertError.message}` };
   }
 
   return { ok: true, skipped: false, storagePath, kind };
 }
 
-function stampNow() {
-  return new Date().toISOString().replace(/[:.]/g, "-");
-}
-
 /**
- * Upload baseline (AB) CSV to private storage and register a DB row.
+ * Upload baseline (AB) CSV:
+ *   baseline/{编号}-{姓名}-baseline.csv
  */
 export async function archiveBaseline({
   subjectId,
@@ -114,14 +120,12 @@ export async function archiveBaseline({
   const client = getClient();
   if (!client) return notConfigured("baseline ");
 
-  const idPart = safeFilePart(subjectId);
-  const namePart = safeFilePart(subjectName);
+  const key = subjectStorageKey(subjectId, subjectName);
   const result = await uploadAndRegister(client, {
     subjectId,
     subjectName,
     kind: "baseline_ab",
-    folder: "baseline",
-    fileName: `${idPart}${namePart}-baseline-ab-${stampNow()}.csv`,
+    storagePath: `baseline/${key}-baseline.csv`,
     body: new TextEncoder().encode(csv),
     contentType: "text/csv;charset=utf-8",
     windowLabel,
@@ -136,8 +140,8 @@ export async function archiveBaseline({
 }
 
 /**
- * Upload experiment (CD) merge CSV to private storage (website can still
- * download a local copy; this is the backend archive copy).
+ * Upload experiment (CD) merge CSV:
+ *   experiment/{编号}-{姓名}-experiment.csv
  */
 export async function archiveExperiment({
   subjectId,
@@ -150,14 +154,12 @@ export async function archiveExperiment({
   const client = getClient();
   if (!client) return notConfigured("CD merge ");
 
-  const idPart = safeFilePart(subjectId);
-  const namePart = safeFilePart(subjectName);
+  const key = subjectStorageKey(subjectId, subjectName);
   const result = await uploadAndRegister(client, {
     subjectId,
     subjectName,
     kind: "experiment_cd",
-    folder: "experiment",
-    fileName: `${idPart}${namePart}-merge-cd-${stampNow()}.csv`,
+    storagePath: `experiment/${key}-experiment.csv`,
     body: new TextEncoder().encode(csv),
     contentType: "text/csv;charset=utf-8",
     windowLabel,
@@ -172,15 +174,14 @@ export async function archiveExperiment({
 }
 
 /**
- * Upload the five raw input files to private storage.
- * @param {Record<string, File>} files — { marks, rr, eeg, gpx, hr }
+ * Upload the five raw input files:
+ *   raw/{编号}-{姓名}/marks|rr|eeg|gpx|hr.{ext}
  */
 export async function archiveRawFiles({ subjectId, subjectName, files }) {
   const client = getClient();
   if (!client) return notConfigured("原始文件");
 
-  const idPart = safeFilePart(subjectId);
-  const stamp = stampNow();
+  const key = subjectStorageKey(subjectId, subjectName);
   const results = [];
 
   for (const slot of RAW_SLOTS) {
@@ -189,13 +190,12 @@ export async function archiveRawFiles({ subjectId, subjectName, files }) {
       results.push({ ok: false, skipped: true, key: slot.key, reason: `缺少原始文件: ${slot.label}` });
       continue;
     }
-    const original = safeFilePart(file.name || `${slot.label}.bin`);
+    const ext = extensionOf(file.name, slot.fallbackExt);
     const result = await uploadAndRegister(client, {
       subjectId,
       subjectName,
       kind: "raw",
-      folder: "raw",
-      fileName: `${stamp}_${slot.label}_${original}`,
+      storagePath: `raw/${key}/${slot.label}${ext}`,
       body: file,
       contentType: contentTypeForName(file.name),
       windowLabel: slot.label,
@@ -213,7 +213,7 @@ export async function archiveRawFiles({ subjectId, subjectName, files }) {
     results,
     reason:
       fail.length === 0
-        ? `原始文件已写入私有库（${okCount}/5；网站不可下载）`
+        ? `原始文件已写入私有库 raw/${key}/（${okCount}/5；网站不可下载）`
         : `原始文件部分失败：${fail.map((f) => f.reason).join(" | ")}`
   };
 }
