@@ -1,13 +1,14 @@
 <script setup>
 import { ref, reactive, computed } from "vue";
 import FileDrop from "../components/FileDrop.vue";
-import { runMerge, finalColumns, safeFilePart } from "../lib/merge";
+import { runMergeWithBaseline, finalColumns, safeFilePart } from "../lib/merge";
+import { archiveBaseline, isArchiveConfigured } from "../lib/archive";
 
 const subjectId = ref("");
 const subjectName = ref("");
 
 const fileSpecs = [
-  { key: "marks", label: "Mark CSV", accept: ".csv", color: "#22d3ee", hint: "展示时间 + 备注(需含开始/结束)" },
+  { key: "marks", label: "Mark CSV", accept: ".csv", color: "#22d3ee", hint: "备注需含 C/D（merge）与 A/B（baseline）" },
   { key: "rr", label: "RR CSV", accept: ".csv", color: "#4ade80", hint: "timestamp + rr_ms" },
   { key: "eeg", label: "EEG Excel", accept: ".xlsx,.xls", color: "#a78bfa", hint: "Date/日期, 时长, Time-set, EEG rows" },
   { key: "gpx", label: "GPS GPX", accept: ".gpx,.xml", color: "#facc15", hint: "trkpt lat/lon + time" },
@@ -19,9 +20,10 @@ const files = reactive({ marks: null, rr: null, eeg: null, gpx: null, hr: null }
 const running = ref(false);
 const rows = ref([]);
 const csv = ref("");
-const logs = ref(["Ready. 填写编号和姓名,上传 5 个文件后开始。"]);
+const logs = ref(["Ready. 填写编号和姓名,上传 5 个文件后开始。网站仅导出 CD merge；AB baseline 后台入库，不可下载。"]);
 const metrics = reactive({ rows: "--", gps: "--", rr: "--", eeg: "--", hr: "--" });
 const rangeText = ref("");
+const baselineStatus = ref("");
 
 const PREVIEW_LIMIT = 80;
 
@@ -51,17 +53,42 @@ async function generate() {
   csv.value = "";
   rows.value = [];
   rangeText.value = "";
+  baselineStatus.value = "";
   running.value = true;
   try {
     const id = subjectId.value.trim();
     const name = subjectName.value.trim();
     log(`Subject: ${id} ${name}`);
-    const result = await runMerge(files, log);
-    rows.value = result.rows;
-    csv.value = result.csv;
-    Object.assign(metrics, result.metrics);
-    rangeText.value = result.range;
-    log(`Done. Preview shows first ${Math.min(PREVIEW_LIMIT, result.rows.length)} rows — click Download CSV.`);
+    log("截断窗口: C→D（网站 merge）；后台并行对齐 A→B（baseline，不可下载）");
+
+    const { experiment, baseline } = await runMergeWithBaseline(files, log);
+
+    // Only CD experiment merge is held for website preview/download.
+    rows.value = experiment.rows;
+    csv.value = experiment.csv;
+    Object.assign(metrics, experiment.metrics);
+    rangeText.value = `CD ${experiment.range}`;
+
+    if (baseline) {
+      log(`Baseline AB ready in memory (${baseline.metrics.rows} rows) — archiving privately…`);
+      const archived = await archiveBaseline({
+        subjectId: id,
+        subjectName: name,
+        csv: baseline.csv,
+        metrics: baseline.metrics,
+        range: baseline.range,
+        windowLabel: baseline.label
+      });
+      baselineStatus.value = archived.reason;
+      log(archived.ok ? `OK: ${archived.reason}` : `Baseline archive: ${archived.reason}`);
+      if (!isArchiveConfigured()) {
+        log("提示: 配置 VITE_SUPABASE_* 后，Generate 时会自动把 AB baseline 写入私有库。");
+      }
+    } else {
+      baselineStatus.value = "未生成 baseline（Mark 缺少 A/B）";
+    }
+
+    log(`Done. 预览/下载仅为 CD merge（前 ${Math.min(PREVIEW_LIMIT, experiment.rows.length)} 行）。`);
   } catch (error) {
     log(`ERROR: ${error.message}`);
   } finally {
@@ -70,6 +97,7 @@ async function generate() {
 }
 
 function download() {
+  // Intentionally downloads CD experiment merge only — never baseline AB.
   if (!csv.value) return;
   const blob = new Blob([csv.value], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -96,7 +124,7 @@ function download() {
           <span>姓名 Name</span>
           <input v-model="subjectName" type="text" placeholder="e.g. 张三" autocomplete="off" />
         </label>
-        <p class="hint">下载文件将命名为 编号姓名-merge.csv</p>
+        <p class="hint">下载仅为 CD 实验段：编号姓名-merge.csv（不含 baseline）</p>
       </section>
 
       <section class="card">
@@ -108,15 +136,16 @@ function download() {
           :file="files[spec.key]"
           @select="(f) => (files[spec.key] = f)"
         />
-        <p class="hint">GBK/ANSI 编码的 CSV 会自动转换。所有解析在浏览器本地完成,数据不上传。</p>
+        <p class="hint">解析在浏览器本地完成。CD merge 可下载；AB baseline 仅后台入库，网站无下载入口。</p>
       </section>
 
       <div class="actions">
         <button class="btn btn-primary" :disabled="!canMerge || running" @click="generate">
           {{ running ? "Processing…" : "Generate Merge CSV" }}
         </button>
-        <button class="btn btn-ghost" :disabled="!csv" @click="download">Download CSV</button>
+        <button class="btn btn-ghost" :disabled="!csv" @click="download">Download CD Merge</button>
       </div>
+      <p v-if="baselineStatus" class="hint gate-hint">{{ baselineStatus }}</p>
       <p v-if="!canMerge" class="hint gate-hint">填写编号、姓名并上传全部 5 个文件后可生成</p>
     </aside>
 

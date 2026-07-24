@@ -152,29 +152,78 @@ function mean(values) {
   return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : "";
 }
 
-async function loadMarks(file) {
+/** Exact stage labels used in Mark 备注 (A/B/C/D). */
+export const STAGE_WINDOWS = {
+  ab: { start: "A", end: "B", label: "baseline AB", kind: "baseline_ab" },
+  cd: { start: "C", end: "D", label: "experiment CD", kind: "experiment_cd" }
+};
+
+function normalizeMark(value) {
+  return String(value ?? "").trim();
+}
+
+function findExactMark(marks, label) {
+  const target = normalizeMark(label);
+  return marks.find((m) => normalizeMark(m.mark) === target) || null;
+}
+
+/**
+ * Resolve a time window from Mark rows.
+ * Preferred: exact A/B (baseline) or C/D (experiment merge).
+ * Legacy fallback for CD only: 备注 containing 开始 / 结束.
+ */
+function resolveWindow(marks, windowKey) {
+  const spec = STAGE_WINDOWS[windowKey];
+  if (!spec) {
+    throw new Error(`Unknown window "${windowKey}". Use "ab" or "cd".`);
+  }
+
+  let start = findExactMark(marks, spec.start);
+  let end = [...marks].reverse().find((m) => normalizeMark(m.mark) === spec.end) || null;
+
+  if ((!start || !end) && windowKey === "cd") {
+    start = marks.find((m) => normalizeMark(m.mark).includes("开始")) || start;
+    end = [...marks].reverse().find((m) => normalizeMark(m.mark).includes("结束")) || end;
+  }
+
+  if (!start || !end) {
+    const seen = marks.map((m) => m.mark).filter(Boolean).slice(0, 12).join(" | ") || "(empty)";
+    const needed =
+      windowKey === "cd"
+        ? "C and D (or legacy 开始/结束)"
+        : "A and B";
+    throw new Error(`Mark CSV must contain ${needed} in 备注 for ${spec.label}. Found 备注 values: ${seen}`);
+  }
+  if (start.time > end.time) {
+    throw new Error(`${spec.label} window is inverted: ${start.time} > ${end.time}`);
+  }
+
+  const clipped = marks.filter((m) => m.time >= start.time && m.time <= end.time);
+  const map = new Map();
+  clipped.forEach((m) => {
+    map.set(m.time, map.has(m.time) ? `${map.get(m.time)} | ${m.mark}` : m.mark);
+  });
+  return {
+    start: start.time,
+    end: end.time,
+    map,
+    window: windowKey,
+    kind: spec.kind,
+    label: spec.label
+  };
+}
+
+async function loadAllMarks(file) {
   const rows = parseCsv(await readTextSmart(file));
   const headers = rows.length ? rows[0].map((h) => String(h).trim()) : [];
   if (!headers.includes("展示时间") || !headers.includes("备注")) {
     throw new Error(`Mark CSV missing 展示时间/备注 columns. Found headers: ${headers.join(" | ") || "(none)"}. Check the file uses commas as delimiters.`);
   }
   const objects = rowsToObjects(rows);
-  const marks = objects.map((row) => ({
+  return objects.map((row) => ({
     time: formatTime(toSecond(parseLocalDateTime(row["展示时间"]))),
     mark: row["备注"] || ""
   })).sort((a, b) => a.time.localeCompare(b.time));
-  const start = marks.find((m) => m.mark.includes("开始"));
-  const end = [...marks].reverse().find((m) => m.mark.includes("结束"));
-  if (!start || !end) {
-    const seen = marks.map((m) => m.mark).filter(Boolean).slice(0, 10).join(" | ") || "(empty)";
-    throw new Error(`Mark CSV must contain 开始 and 结束 in 备注. Found 备注 values: ${seen}`);
-  }
-  const clipped = marks.filter((m) => m.time >= start.time && m.time <= end.time);
-  const map = new Map();
-  clipped.forEach((m) => {
-    map.set(m.time, map.has(m.time) ? `${map.get(m.time)} | ${m.mark}` : m.mark);
-  });
-  return { start: start.time, end: end.time, map };
 }
 
 async function loadRR(file) {
@@ -293,25 +342,8 @@ export function safeFilePart(s) {
   return String(s).replace(/[\\/:*?"<>|]/g, "_");
 }
 
-/**
- * Run the full merge pipeline. `log` is called with progress messages.
- * Returns { rows, csv, metrics, range }.
- */
-export async function runMerge(files, log) {
-  log("Reading Mark file...");
-  const marks = await loadMarks(files.marks);
-  const rows = buildTimeline(marks.start, marks.end);
-  log(`Time window: ${marks.start} → ${marks.end} (${rows.length} seconds)`);
-
-  log("Reading RR file...");
-  const rr = await loadRR(files.rr);
-  log("Reading EEG file...");
-  const eeg = await loadEEG(files.eeg);
-  log("Reading GPX file...");
-  const gpx = await loadGPX(files.gpx);
-  log("Reading Heart Rate file...");
-  const heartRate = await loadHeartRate(files.hr);
-
+function assembleRows(timeline, { rr, eeg, gpx, heartRate, marks }) {
+  const rows = timeline.map((row) => ({ ...row }));
   rows.forEach((row) => {
     row.rr = rr.get(row.time) ?? "";
     Object.assign(row, eeg.get(row.time) || {});
@@ -324,7 +356,6 @@ export async function runMerge(files, log) {
       if (row[column] === undefined || row[column] === null) row[column] = "";
     });
   });
-
   return {
     rows,
     csv: toCsv(rows),
@@ -335,6 +366,69 @@ export async function runMerge(files, log) {
       eeg: rows.filter((r) => r.attention !== "").length,
       hr: rows.filter((r) => r.heart_rate !== "").length
     },
-    range: `${rows[0].time} → ${rows[rows.length - 1].time}`
+    range: rows.length ? `${rows[0].time} → ${rows[rows.length - 1].time}` : "",
+    window: marks.window,
+    kind: marks.kind,
+    label: marks.label
   };
+}
+
+/**
+ * Run the merge pipeline for one window.
+ * @param {"cd"|"ab"} [options.window="cd"] — CD = website merge; AB = baseline (archive only)
+ */
+export async function runMerge(files, log = () => {}, options = {}) {
+  const windowKey = options.window || "cd";
+  log("Reading Mark file...");
+  const allMarks = await loadAllMarks(files.marks);
+  const marks = resolveWindow(allMarks, windowKey);
+  const rows = buildTimeline(marks.start, marks.end);
+  log(`${marks.label}: ${marks.start} → ${marks.end} (${rows.length} seconds)`);
+
+  log("Reading RR file...");
+  const rr = await loadRR(files.rr);
+  log("Reading EEG file...");
+  const eeg = await loadEEG(files.eeg);
+  log("Reading GPX file...");
+  const gpx = await loadGPX(files.gpx);
+  log("Reading Heart Rate file...");
+  const heartRate = await loadHeartRate(files.hr);
+
+  return assembleRows(rows, { rr, eeg, gpx, heartRate, marks });
+}
+
+/**
+ * Generate experiment (CD) merge for download and baseline (AB) merge for archive.
+ * Baseline is never exposed as a website download — callers must archive it server-side.
+ */
+export async function runMergeWithBaseline(files, log = () => {}) {
+  log("Reading Mark file...");
+  const allMarks = await loadAllMarks(files.marks);
+  const experimentMarks = resolveWindow(allMarks, "cd");
+  const experimentTimeline = buildTimeline(experimentMarks.start, experimentMarks.end);
+  log(`${experimentMarks.label}: ${experimentMarks.start} → ${experimentMarks.end} (${experimentTimeline.length} seconds)`);
+
+  let baselineMarks = null;
+  let baselineTimeline = null;
+  try {
+    baselineMarks = resolveWindow(allMarks, "ab");
+    baselineTimeline = buildTimeline(baselineMarks.start, baselineMarks.end);
+    log(`${baselineMarks.label}: ${baselineMarks.start} → ${baselineMarks.end} (${baselineTimeline.length} seconds)`);
+  } catch (error) {
+    log(`Baseline AB skipped: ${error.message}`);
+  }
+
+  log("Reading RR / EEG / GPX / HR once for both windows...");
+  const rr = await loadRR(files.rr);
+  const eeg = await loadEEG(files.eeg);
+  const gpx = await loadGPX(files.gpx);
+  const heartRate = await loadHeartRate(files.hr);
+  const sensors = { rr, eeg, gpx, heartRate };
+
+  const experiment = assembleRows(experimentTimeline, { ...sensors, marks: experimentMarks });
+  const baseline = baselineMarks
+    ? assembleRows(baselineTimeline, { ...sensors, marks: baselineMarks })
+    : null;
+
+  return { experiment, baseline };
 }

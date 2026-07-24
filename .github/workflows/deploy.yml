@@ -26,7 +26,11 @@ jobs:
       # npm install instead of npm ci: lockfiles generated on macOS can drop
       # Linux-only optional deps (npm lockfile bug), which breaks npm ci.
       - run: npm install --no-audit --no-fund
-      - run: npm run build
+      - name: Build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
