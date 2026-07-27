@@ -1,13 +1,13 @@
 :root {
   --bg: #07090d;
   --bg-soft: #0c1016;
-  --panel: rgba(255, 255, 255, 0.028);
-  --panel-hover: rgba(255, 255, 255, 0.05);
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.14);
-  --ink: #e6edf3;
-  --muted: #8b949e;
-  --faint: #59616c;
+  --panel: rgba(255, 255, 255, 0.04);
+  --panel-hover: rgba(255, 255, 255, 0.065);
+  --line: rgba(255, 255, 255, 0.11);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --ink: #edf3f8;
+  --muted: #a7b0bc;
+  --faint: #75808d;
   --accent: #22d3ee;
   --teal: #14b8a6;
   --rainbow: linear-gradient(90deg, #22d3ee, #4ade80, #facc15, #fb923c, #ef4444);
@@ -57,6 +57,8 @@ body {
   z-index: 20;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
   gap: 20px;
   padding: 0 24px;
   height: 58px;
@@ -84,6 +86,7 @@ body {
   font-size: 15px;
   letter-spacing: 0.2px;
   white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .brand-orb {
@@ -100,6 +103,41 @@ body {
   font-size: 11px;
   letter-spacing: 1.4px;
   text-transform: uppercase;
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.nav-link {
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.02);
+  transition: color 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.nav-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.nav-link.active {
+  color: #041016;
+  background: linear-gradient(135deg, #67e8f9, #22d3ee 55%, #14b8a6);
+  border-color: transparent;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.35);
 }
 
 /* ---------- Cards & panels ---------- */
@@ -339,4 +377,9 @@ td.empty {
 
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Decorative route markers must not intercept clicks on selectable map paths. */
+.mapboxgl-marker.route-flag-marker {
+  pointer-events: none !important;
 }

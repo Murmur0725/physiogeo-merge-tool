@@ -192,7 +192,7 @@ function resolveWindow(marks, windowKey) {
       windowKey === "cd"
         ? "C and D (or legacy 开始/结束)"
         : "A and B";
-    throw new Error(`Mark CSV must contain ${needed} in 备注 for ${spec.label}. Found 备注 values: ${seen}`);
+    throw new Error(`Mark CSV must contain ${needed} in the notes column (备注) for ${spec.label}. Found notes: ${seen}`);
   }
   if (start.time > end.time) {
     throw new Error(`${spec.label} window is inverted: ${start.time} > ${end.time}`);
@@ -217,7 +217,7 @@ async function loadAllMarks(file) {
   const rows = parseCsv(await readTextSmart(file));
   const headers = rows.length ? rows[0].map((h) => String(h).trim()) : [];
   if (!headers.includes("展示时间") || !headers.includes("备注")) {
-    throw new Error(`Mark CSV missing 展示时间/备注 columns. Found headers: ${headers.join(" | ") || "(none)"}. Check the file uses commas as delimiters.`);
+    throw new Error(`Mark CSV missing required columns 展示时间 / 备注. Found headers: ${headers.join(" | ") || "(none)"}. Check the file uses commas as delimiters.`);
   }
   const objects = rowsToObjects(rows);
   return objects.map((row) => ({

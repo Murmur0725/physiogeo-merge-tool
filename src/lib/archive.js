@@ -45,7 +45,7 @@ function notConfigured(what) {
   return {
     ok: false,
     skipped: true,
-    reason: `Supabase 未配置（缺少 VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）。${what}已在内存生成但未入库。`
+    reason: `Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY). ${what}was generated in memory but not archived.`
   };
 }
 
@@ -166,7 +166,7 @@ export async function archiveBaseline({
   });
 
   if (result.ok) {
-    result.reason = "baseline 已写入私有库（网站不可下载，仅后台可调取）";
+    result.reason = "Baseline saved to private archive (not downloadable from the site).";
   }
   return result;
 }
@@ -200,7 +200,7 @@ export async function archiveExperiment({
   });
 
   if (result.ok) {
-    result.reason = "CD merge 已写入私有库（网站仍可本地下载，后台可调取）";
+    result.reason = "CD merge saved to private archive (still downloadable locally; backend can retrieve).";
   }
   return result;
 }
@@ -211,7 +211,7 @@ export async function archiveExperiment({
  */
 export async function archiveRawFiles({ subjectId, subjectName, files }) {
   const client = getClient();
-  if (!client) return notConfigured("原始文件");
+  if (!client) return notConfigured("Raw files ");
 
   const key = subjectStorageKey(subjectId, subjectName);
   const results = [];
@@ -219,7 +219,7 @@ export async function archiveRawFiles({ subjectId, subjectName, files }) {
   for (const slot of RAW_SLOTS) {
     const file = files?.[slot.key];
     if (!file) {
-      results.push({ ok: false, skipped: true, key: slot.key, reason: `缺少原始文件: ${slot.label}` });
+      results.push({ ok: false, skipped: true, key: slot.key, reason: `Missing raw file: ${slot.label}` });
       continue;
     }
     const ext = extensionOf(file.name, slot.fallbackExt);
@@ -245,8 +245,8 @@ export async function archiveRawFiles({ subjectId, subjectName, files }) {
     results,
     reason:
       fail.length === 0
-        ? `原始文件已写入私有库 raw/${key}/（${okCount}/5；网站不可下载）`
-        : `原始文件部分失败：${fail.map((f) => f.reason).join(" | ")}`
+        ? `Raw files saved to private archive raw/${key}/ (${okCount}/5; not downloadable from the site)`
+        : `Raw archive partially failed: ${fail.map((f) => f.reason).join(" | ")}`
   };
 }
 
@@ -265,10 +265,10 @@ export async function archiveSession({
     return {
       ok: false,
       skipped: true,
-      reason: "Supabase 未配置。CD/AB/原始数据未入库。",
+      reason: "Supabase is not configured. CD/AB/raw data were not archived.",
       experiment: notConfigured("CD merge "),
       baseline: baseline ? notConfigured("baseline ") : null,
-      raw: notConfigured("原始文件")
+      raw: notConfigured("Raw files ")
     };
   }
 
@@ -281,7 +281,7 @@ export async function archiveSession({
         range: experiment.range,
         windowLabel: experiment.label
       })
-    : { ok: false, skipped: true, reason: "无 CD merge" };
+    : { ok: false, skipped: true, reason: "No CD merge" };
 
   const baselineResult = baseline
     ? await archiveBaseline({
@@ -292,7 +292,7 @@ export async function archiveSession({
         range: baseline.range,
         windowLabel: baseline.label
       })
-    : { ok: false, skipped: true, reason: "无 AB baseline（Mark 缺少 A/B）" };
+    : { ok: false, skipped: true, reason: "No AB baseline (Mark CSV missing A/B)" };
 
   const rawResult = await archiveRawFiles({ subjectId, subjectName, files });
 
@@ -309,7 +309,7 @@ export async function archiveSession({
     baseline: baselineResult,
     raw: rawResult,
     reason: parts.length
-      ? `私有库已归档：${parts.join(" + ")}（网站不可从库下载；CD 仍可本地下载）`
-      : `归档失败：${[experimentResult.reason, baselineResult.reason, rawResult.reason].filter(Boolean).join(" | ")}`
+      ? `Private archive updated: ${parts.join(" + ")} (not downloadable from the site; CD still available locally)`
+      : `Archive failed: ${[experimentResult.reason, baselineResult.reason, rawResult.reason].filter(Boolean).join(" | ")}`
   };
 }

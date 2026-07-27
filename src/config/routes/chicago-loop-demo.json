@@ -1,0 +1,19 @@
+{
+  "id": "chicago-loop-demo",
+  "name": "Chicago Loop Demo (Wabash)",
+  "instrumentId": "customEval",
+  "streetViewSampleCount": 5,
+  "waypoints": [
+    { "id": "w0", "lng": -87.6265, "lat": 41.8768, "label": "Start · Van Buren / Wabash" },
+    { "id": "w1", "lng": -87.6264, "lat": 41.8756, "label": "Congress / Wabash" },
+    { "id": "w2", "lng": -87.6263, "lat": 41.8742, "label": "Mid Wabash" },
+    { "id": "w3", "lng": -87.6245, "lat": 41.8741, "label": "Toward Michigan" },
+    { "id": "w4", "lng": -87.6244, "lat": 41.8755, "label": "Michigan north" },
+    { "id": "w5", "lng": -87.6265, "lat": 41.8768, "label": "Return start" }
+  ],
+  "splits": [
+    { "afterWaypointId": "w0", "segmentLabel": "Zone A · South on Wabash" },
+    { "afterWaypointId": "w2", "segmentLabel": "Zone B · Toward Michigan" },
+    { "afterWaypointId": "w4", "segmentLabel": "Zone C · Return" }
+  ]
+}

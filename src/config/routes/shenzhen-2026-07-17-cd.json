@@ -1,0 +1,498 @@
+{
+  "id": "shenzhen-2026-07-17-cd",
+  "name": "Chicago Loop Demo (Wabash)",
+  "instrumentId": "customEval",
+  "streetViewSampleCount": 5,
+  "source": {
+    "gpx": "2026-07-17 12 54 43.gpx",
+    "marks": "时间戳记录_20260717_133032.csv",
+    "startLocal": "2026-07-17 13:02:37",
+    "endLocal": "2026-07-17 13:25:18",
+    "rawPointCount": 127,
+    "simplifiedPointCount": 44,
+    "simplifyToleranceMeters": 3,
+    "distanceMeters": 1488.3
+  },
+  "waypoints": [
+    {
+      "id": "w0",
+      "lng": 113.997221,
+      "lat": 22.59478,
+      "label": "C · Experiment start",
+      "time": "2026-07-17T05:02:37.000Z"
+    },
+    {
+      "id": "w1",
+      "lng": 113.996989,
+      "lat": 22.594789,
+      "label": "GPS 2",
+      "time": "2026-07-17T05:02:57Z"
+    },
+    {
+      "id": "w2",
+      "lng": 113.996588,
+      "lat": 22.59468,
+      "label": "GPS 3",
+      "time": "2026-07-17T05:03:44Z"
+    },
+    {
+      "id": "w3",
+      "lng": 113.996217,
+      "lat": 22.594507,
+      "label": "GPS 4",
+      "time": "2026-07-17T05:04:21Z"
+    },
+    {
+      "id": "w4",
+      "lng": 113.996114,
+      "lat": 22.594511,
+      "label": "GPS 5",
+      "time": "2026-07-17T05:04:31Z"
+    },
+    {
+      "id": "w5",
+      "lng": 113.995915,
+      "lat": 22.594424,
+      "label": "GPS 6",
+      "time": "2026-07-17T05:04:48Z"
+    },
+    {
+      "id": "w6",
+      "lng": 113.995715,
+      "lat": 22.594429,
+      "label": "GPS 7",
+      "time": "2026-07-17T05:05:09Z"
+    },
+    {
+      "id": "w7",
+      "lng": 113.995419,
+      "lat": 22.594332,
+      "label": "GPS 8",
+      "time": "2026-07-17T05:05:37Z"
+    },
+    {
+      "id": "w8",
+      "lng": 113.995128,
+      "lat": 22.594317,
+      "label": "GPS 9",
+      "time": "2026-07-17T05:06:05Z"
+    },
+    {
+      "id": "w9",
+      "lng": 113.994641,
+      "lat": 22.594143,
+      "label": "GPS 10",
+      "time": "2026-07-17T05:06:48Z"
+    },
+    {
+      "id": "w10",
+      "lng": 113.994391,
+      "lat": 22.593969,
+      "label": "GPS 11",
+      "time": "2026-07-17T05:07:50Z"
+    },
+    {
+      "id": "w11",
+      "lng": 113.994161,
+      "lat": 22.593954,
+      "label": "GPS 12",
+      "time": "2026-07-17T05:08:09Z"
+    },
+    {
+      "id": "w12",
+      "lng": 113.994122,
+      "lat": 22.593745,
+      "label": "GPS 13",
+      "time": "2026-07-17T05:08:46Z"
+    },
+    {
+      "id": "w13",
+      "lng": 113.993648,
+      "lat": 22.593537,
+      "label": "GPS 14",
+      "time": "2026-07-17T05:09:03Z"
+    },
+    {
+      "id": "w14",
+      "lng": 113.993457,
+      "lat": 22.593596,
+      "label": "GPS 15",
+      "time": "2026-07-17T05:09:07Z"
+    },
+    {
+      "id": "w15",
+      "lng": 113.993356,
+      "lat": 22.593232,
+      "label": "GPS 16",
+      "time": "2026-07-17T05:10:19Z"
+    },
+    {
+      "id": "w16",
+      "lng": 113.99371,
+      "lat": 22.592879,
+      "label": "GPS 17",
+      "time": "2026-07-17T05:10:48Z"
+    },
+    {
+      "id": "w17",
+      "lng": 113.99392,
+      "lat": 22.592922,
+      "label": "GPS 18",
+      "time": "2026-07-17T05:11:12Z"
+    },
+    {
+      "id": "w18",
+      "lng": 113.994214,
+      "lat": 22.593039,
+      "label": "GPS 19",
+      "time": "2026-07-17T05:11:43Z"
+    },
+    {
+      "id": "w19",
+      "lng": 113.994485,
+      "lat": 22.593337,
+      "label": "GPS 20",
+      "time": "2026-07-17T05:12:14Z"
+    },
+    {
+      "id": "w20",
+      "lng": 113.994588,
+      "lat": 22.593358,
+      "label": "GPS 21",
+      "time": "2026-07-17T05:12:26Z"
+    },
+    {
+      "id": "w21",
+      "lng": 113.994781,
+      "lat": 22.593317,
+      "label": "GPS 22",
+      "time": "2026-07-17T05:12:40Z"
+    },
+    {
+      "id": "w22",
+      "lng": 113.99517,
+      "lat": 22.593468,
+      "label": "GPS 23",
+      "time": "2026-07-17T05:13:21Z"
+    },
+    {
+      "id": "w23",
+      "lng": 113.995358,
+      "lat": 22.593423,
+      "label": "GPS 24",
+      "time": "2026-07-17T05:13:42Z"
+    },
+    {
+      "id": "w24",
+      "lng": 113.995914,
+      "lat": 22.593697,
+      "label": "GPS 25",
+      "time": "2026-07-17T05:14:45Z"
+    },
+    {
+      "id": "w25",
+      "lng": 113.996211,
+      "lat": 22.593726,
+      "label": "GPS 26",
+      "time": "2026-07-17T05:15:15Z"
+    },
+    {
+      "id": "w26",
+      "lng": 113.996442,
+      "lat": 22.593917,
+      "label": "GPS 27",
+      "time": "2026-07-17T05:15:43Z"
+    },
+    {
+      "id": "w27",
+      "lng": 113.997044,
+      "lat": 22.594086,
+      "label": "GPS 28",
+      "time": "2026-07-17T05:16:46Z"
+    },
+    {
+      "id": "w28",
+      "lng": 113.997678,
+      "lat": 22.594448,
+      "label": "GPS 29",
+      "time": "2026-07-17T05:17:52Z"
+    },
+    {
+      "id": "w29",
+      "lng": 113.998149,
+      "lat": 22.594607,
+      "label": "GPS 30",
+      "time": "2026-07-17T05:18:38Z"
+    },
+    {
+      "id": "w30",
+      "lng": 113.998373,
+      "lat": 22.594782,
+      "label": "GPS 31",
+      "time": "2026-07-17T05:19:06Z"
+    },
+    {
+      "id": "w31",
+      "lng": 113.99878,
+      "lat": 22.594852,
+      "label": "GPS 32",
+      "time": "2026-07-17T05:19:45Z"
+    },
+    {
+      "id": "w32",
+      "lng": 113.999194,
+      "lat": 22.595152,
+      "label": "GPS 33",
+      "time": "2026-07-17T05:20:29Z"
+    },
+    {
+      "id": "w33",
+      "lng": 113.999296,
+      "lat": 22.595146,
+      "label": "GPS 34",
+      "time": "2026-07-17T05:20:37Z"
+    },
+    {
+      "id": "w34",
+      "lng": 113.999357,
+      "lat": 22.595237,
+      "label": "GPS 35",
+      "time": "2026-07-17T05:20:50Z"
+    },
+    {
+      "id": "w35",
+      "lng": 113.999236,
+      "lat": 22.595512,
+      "label": "GPS 36",
+      "time": "2026-07-17T05:21:21Z"
+    },
+    {
+      "id": "w36",
+      "lng": 113.999172,
+      "lat": 22.595594,
+      "label": "GPS 37",
+      "time": "2026-07-17T05:21:33Z"
+    },
+    {
+      "id": "w37",
+      "lng": 113.998992,
+      "lat": 22.595689,
+      "label": "GPS 38",
+      "time": "2026-07-17T05:21:48Z"
+    },
+    {
+      "id": "w38",
+      "lng": 113.998964,
+      "lat": 22.595776,
+      "label": "GPS 39",
+      "time": "2026-07-17T05:21:55Z"
+    },
+    {
+      "id": "w39",
+      "lng": 113.999149,
+      "lat": 22.595992,
+      "label": "GPS 40",
+      "time": "2026-07-17T05:22:20Z"
+    },
+    {
+      "id": "w40",
+      "lng": 113.999252,
+      "lat": 22.596267,
+      "label": "GPS 41",
+      "time": "2026-07-17T05:22:46Z"
+    },
+    {
+      "id": "w41",
+      "lng": 113.999512,
+      "lat": 22.596667,
+      "label": "GPS 42",
+      "time": "2026-07-17T05:23:30Z"
+    },
+    {
+      "id": "w42",
+      "lng": 113.99983,
+      "lat": 22.597357,
+      "label": "GPS 43",
+      "time": "2026-07-17T05:24:43Z"
+    },
+    {
+      "id": "w43",
+      "lng": 113.999826,
+      "lat": 22.59758,
+      "label": "D · Experiment end",
+      "time": "2026-07-17T05:25:18.000Z"
+    }
+  ],
+  "splits": [
+    {
+      "afterWaypointId": "w0",
+      "segmentLabel": "Section 1"
+    },
+    {
+      "afterWaypointId": "w15",
+      "segmentLabel": "Section 2"
+    },
+    {
+      "afterWaypointId": "w28",
+      "segmentLabel": "Section 3"
+    }
+  ],
+  "segmentSamples": {
+    "Section 1": [
+      {
+        "id": "photo-img_2890",
+        "lng": 113.9971222,
+        "lat": 22.5948306,
+        "label": "IMG_2890",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2890.jpg",
+        "capturedAt": "2026:07:27 19:34:34",
+        "compassAngle": 245.7,
+        "imageDistanceMeters": 5.2
+      },
+      {
+        "id": "photo-img_2891",
+        "lng": 113.9961472,
+        "lat": 22.5945361,
+        "label": "IMG_2891",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2891.jpg",
+        "capturedAt": "2026:07:27 19:35:16",
+        "compassAngle": 251.0,
+        "imageDistanceMeters": 2.9
+      },
+      {
+        "id": "photo-img_2892",
+        "lng": 113.9953778,
+        "lat": 22.5943056,
+        "label": "IMG_2892",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2892.jpg",
+        "capturedAt": "2026:07:27 19:36:14",
+        "compassAngle": 243.8,
+        "imageDistanceMeters": 2.7
+      },
+      {
+        "id": "photo-img_2893",
+        "lng": 113.9941861,
+        "lat": 22.593975,
+        "label": "IMG_2893",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2893.jpg",
+        "capturedAt": "2026:07:27 19:37:06",
+        "compassAngle": 262.6,
+        "imageDistanceMeters": 2.1
+      },
+      {
+        "id": "photo-img_2895",
+        "lng": 113.9935306,
+        "lat": 22.5935889,
+        "label": "IMG_2895",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2895.jpg",
+        "capturedAt": "2026:07:27 19:37:52",
+        "compassAngle": 221.0,
+        "imageDistanceMeters": 1.6
+      },
+      {
+        "id": "photo-img_2896",
+        "lng": 113.9932861,
+        "lat": 22.593525,
+        "label": "IMG_2896",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2896.jpg",
+        "capturedAt": "2026:07:27 19:38:28",
+        "compassAngle": 151.7,
+        "imageDistanceMeters": 15.0
+      }
+    ],
+    "Section 2": [
+      {
+        "id": "photo-img_2897",
+        "lng": 113.9937139,
+        "lat": 22.5928778,
+        "label": "IMG_2897",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2897.jpg",
+        "capturedAt": "2026:07:27 19:39:06",
+        "compassAngle": 122.0,
+        "imageDistanceMeters": 0.2
+      },
+      {
+        "id": "photo-img_2898",
+        "lng": 113.9952611,
+        "lat": 22.5934639,
+        "label": "IMG_2898",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2898.jpg",
+        "capturedAt": "2026:07:27 19:40:18",
+        "compassAngle": 92.1,
+        "imageDistanceMeters": 1.9
+      },
+      {
+        "id": "photo-img_2899",
+        "lng": 113.9966056,
+        "lat": 22.5939306,
+        "label": "IMG_2899",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2899.jpg",
+        "capturedAt": "2026:07:27 19:43:01",
+        "compassAngle": 94.8,
+        "imageDistanceMeters": 3.4
+      },
+      {
+        "id": "photo-img_2900",
+        "lng": 113.9971611,
+        "lat": 22.59415,
+        "label": "IMG_2900",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2900.jpg",
+        "capturedAt": "2026:07:27 19:43:30",
+        "compassAngle": 62.4,
+        "imageDistanceMeters": 0.3
+      }
+    ],
+    "Section 3": [
+      {
+        "id": "photo-img_2901",
+        "lng": 113.9984194,
+        "lat": 22.5946528,
+        "label": "IMG_2901",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2901.jpg",
+        "capturedAt": "2026:07:27 19:44:18",
+        "compassAngle": 69.9,
+        "imageDistanceMeters": 14.0
+      },
+      {
+        "id": "photo-img_2902",
+        "lng": 113.9992833,
+        "lat": 22.5951278,
+        "label": "IMG_2902",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2902.jpg",
+        "capturedAt": "2026:07:27 19:44:53",
+        "compassAngle": 74.7,
+        "imageDistanceMeters": 2.1
+      },
+      {
+        "id": "photo-img_2887",
+        "lng": 113.9988028,
+        "lat": 22.5958389,
+        "label": "IMG_2887",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2887.jpg",
+        "capturedAt": "2026:07:27 19:33:01",
+        "compassAngle": 192.5,
+        "imageDistanceMeters": 18.0
+      },
+      {
+        "id": "photo-img_2904",
+        "lng": 113.9991778,
+        "lat": 22.5961056,
+        "label": "IMG_2904",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2904.jpg",
+        "capturedAt": "2026:07:27 19:46:02",
+        "compassAngle": 32.8,
+        "imageDistanceMeters": 1.3
+      },
+      {
+        "id": "photo-img_2905",
+        "lng": 113.9997389,
+        "lat": 22.5973111,
+        "label": "IMG_2905",
+        "thumbUrl": "streetviews/shenzhen-2026-07-17-cd/img_2905.jpg",
+        "capturedAt": "2026:07:27 19:46:48",
+        "compassAngle": 12.1,
+        "imageDistanceMeters": 6.6
+      }
+    ]
+  }
+}
