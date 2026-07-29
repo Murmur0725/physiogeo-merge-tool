@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import App from "./App.vue";
 import MergeView from "./views/MergeView.vue";
 import ReviewView from "./views/ReviewView.vue";
+import BiometricDemoView from "./views/BiometricDemoView.vue";
 import "./style.css";
 
 const router = createRouter({
@@ -10,6 +11,7 @@ const router = createRouter({
   routes: [
     { path: "/", name: "merge", component: MergeView },
     { path: "/review", name: "review", component: ReviewView },
+    { path: "/demo", name: "demo", component: BiometricDemoView },
     { path: "/:pathMatch(.*)*", redirect: "/" }
   ]
 });

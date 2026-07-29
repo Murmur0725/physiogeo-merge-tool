@@ -25,6 +25,13 @@ const route = useRoute();
       >
         Review
       </RouterLink>
+      <RouterLink
+        to="/demo"
+        class="nav-link"
+        :class="{ active: route.path.startsWith('/demo') }"
+      >
+        Demo
+      </RouterLink>
     </nav>
   </header>
   <RouterView />

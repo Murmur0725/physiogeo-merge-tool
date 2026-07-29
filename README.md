@@ -6,6 +6,8 @@ Vue 3 + Vite, deployed on GitHub Pages.
 
 **Live:** https://murmur0725.github.io/physiogeo-merge-tool/
 
+**Pages:** Merge (`/`) · Review (`/review`) · Demo (`/demo`) — biometric 3D pillars with street views and spectrograms from `public/biometric-demo/`.
+
 ## Usage
 
 1. Fill in 编号 (Subject ID) and 姓名 (Name).
