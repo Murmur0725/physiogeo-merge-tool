@@ -2,17 +2,28 @@ import PssSurvey from "./PssSurvey.vue";
 import PomsSfSurvey from "./PomsSfSurvey.vue";
 import RosSurvey from "./RosSurvey.vue";
 import CustomEvalSurvey from "./CustomEvalSurvey.vue";
+import PretestSurvey from "./PretestSurvey.vue";
 
 export const SURVEY_REGISTRY = {
+  pretest: {
+    id: "pretest",
+    label: "Pre-test (GAD-7 + POMS-30)",
+    component: PretestSurvey
+  },
+  posttest: {
+    id: "posttest",
+    label: "Post-test (POMS-30)",
+    component: PomsSfSurvey
+  },
+  pomsSf: {
+    id: "pomsSf",
+    label: "POMS-30",
+    component: PomsSfSurvey
+  },
   pss: {
     id: "pss",
     label: "PSS (Perceived Stress Scale)",
     component: PssSurvey
-  },
-  pomsSf: {
-    id: "pomsSf",
-    label: "POMS-SF",
-    component: PomsSfSurvey
   },
   ros: {
     id: "ros",
@@ -27,5 +38,5 @@ export const SURVEY_REGISTRY = {
 };
 
 export function resolveSurvey(instrumentId) {
-  return SURVEY_REGISTRY[instrumentId] || SURVEY_REGISTRY.customEval;
+  return SURVEY_REGISTRY[instrumentId] || SURVEY_REGISTRY.posttest;
 }

@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import decodedRoute from "../config/routes/shenzhen-2026-07-17-cd.json";
 import { parseRouteConfig } from "../lib/parseRouteConfig";
-import { saveReviewSession } from "../lib/reviewArchive";
+import { savePretestSession, saveReviewSession } from "../lib/reviewArchive";
 import {
   buildScores,
   isInstrumentComplete,
@@ -12,14 +12,15 @@ import SegmentMap from "../components/review/SegmentMap.vue";
 import SegmentGalleryBar from "../components/review/SegmentGalleryBar.vue";
 import StreetViewLightbox from "../components/review/StreetViewLightbox.vue";
 import SurveyHost from "../components/surveys/SurveyHost.vue";
-import { SURVEY_REGISTRY } from "../components/surveys/registry";
+import PretestSurvey from "../components/surveys/PretestSurvey.vue";
 import { withSegmentColors } from "../lib/segmentColors";
 
 const parsed = parseRouteConfig(decodedRoute);
 
+/** @type {import('vue').Ref<'pre'|'post'>} */
+const phase = ref("pre");
 const subjectId = ref("");
 const subjectName = ref("");
-const instrumentId = ref(parsed.instrumentId);
 
 const hoverSegmentId = ref(null);
 const activeSegmentId = ref(null);
@@ -27,13 +28,17 @@ const lightboxOpen = ref(false);
 const lightboxPointId = ref(null);
 const activePointId = ref(null);
 
-/** drafts keyed by segmentId */
+/** drafts keyed by segmentId (post) or single pretest draft */
 const drafts = reactive({});
+const pretestDraft = ref({});
 /** confirmed payload keyed by segmentId: { answers, scores } */
 const confirmed = reactive({});
+const pretestConfirmed = ref(null);
 
 const saveStatus = ref(null);
 const saving = ref(false);
+
+const isPre = computed(() => phase.value === "pre");
 
 const segments = computed(() => withSegmentColors(parsed.segments));
 const routeMeta = computed(() => parsed.meta);
@@ -53,6 +58,27 @@ const allSegmentsComplete = computed(
     segments.value.length > 0 &&
     segments.value.every((s) => Boolean(confirmed[s.id]))
 );
+
+const phaseHint = computed(() =>
+  isPre.value ? "No route · GAD-7 + mood" : "Per segment · mood"
+);
+
+function clearSessionState() {
+  Object.keys(drafts).forEach((k) => delete drafts[k]);
+  Object.keys(confirmed).forEach((k) => delete confirmed[k]);
+  pretestDraft.value = {};
+  pretestConfirmed.value = null;
+  activeSegmentId.value = null;
+  activePointId.value = null;
+  lightboxOpen.value = false;
+  lightboxPointId.value = null;
+  hoverSegmentId.value = null;
+  saveStatus.value = null;
+}
+
+watch(phase, () => {
+  clearSessionState();
+});
 
 function onHover(id) {
   hoverSegmentId.value = id;
@@ -95,30 +121,62 @@ watch(activeSegmentId, (id) => {
   if (id && !drafts[id]) drafts[id] = {};
 });
 
-watch(instrumentId, () => {
-  Object.keys(confirmed).forEach((k) => {
-    delete confirmed[k];
-  });
-  saveStatus.value = null;
-});
-
-/** Local confirm for current segment (does not upload yet). */
+/** Local confirm for current segment (post-test only). */
 function onSegmentConfirm(payload) {
   const segId = payload.segmentId || activeSegmentId.value;
   if (!segId) return;
   const answers = payload.answers || drafts[segId] || {};
-  if (!isInstrumentComplete(instrumentId.value, answers)) {
-    saveStatus.value = { ok: false, message: "Please complete all items for this segment first." };
+  if (!isInstrumentComplete("posttest", answers)) {
+    saveStatus.value = {
+      ok: false,
+      message: "Please complete all items for this segment first."
+    };
     return;
   }
   confirmed[segId] = {
-    answers: normalizeAnswers(instrumentId.value, answers),
-    scores: payload.scores || buildScores(instrumentId.value, answers)
+    answers: normalizeAnswers("posttest", answers),
+    scores: payload.scores || buildScores("posttest", answers)
   };
   saveStatus.value = {
     ok: true,
     message: `Confirmed “${activeSegment.value?.label || segId}” (${completedCount.value}/${segments.value.length})`
   };
+}
+
+async function submitPretest(payload) {
+  if (saving.value) return;
+  const answers = payload?.answers || pretestDraft.value;
+  if (!isInstrumentComplete("pretest", answers)) {
+    saveStatus.value = { ok: false, message: "Please complete GAD-7 and all mood items." };
+    return;
+  }
+  saving.value = true;
+  saveStatus.value = null;
+  try {
+    const scores = payload?.scores || buildScores("pretest", answers);
+    const normalized = normalizeAnswers("pretest", answers);
+    pretestConfirmed.value = { answers: normalized, scores };
+    const result = await savePretestSession({
+      subjectId: subjectId.value.trim() || "anonymous",
+      subjectName: subjectName.value.trim() || "anonymous",
+      answers: normalized,
+      scores
+    });
+    if (result.ok) {
+      saveStatus.value = {
+        ok: true,
+        message: result.skipped
+          ? result.reason
+          : `Pre-test submitted (session ${String(result.sessionId).slice(0, 8)}…)`
+      };
+    } else {
+      saveStatus.value = { ok: false, message: result.reason || "Submit failed" };
+    }
+  } catch (err) {
+    saveStatus.value = { ok: false, message: err?.message || String(err) };
+  } finally {
+    saving.value = false;
+  }
 }
 
 async function submitAll() {
@@ -136,7 +194,7 @@ async function submitAll() {
       subjectName: subjectName.value.trim() || "anonymous",
       routeConfigId: routeMeta.value.id,
       routeName: routeMeta.value.name,
-      instrumentId: instrumentId.value,
+      instrumentId: "posttest",
       segments: segments.value,
       responses
     });
@@ -159,21 +217,31 @@ async function submitAll() {
 </script>
 
 <template>
-  <main class="review-page">
+  <main class="review-page" :class="{ 'phase-pre': isPre, 'phase-post': !isPre }">
     <section class="review-toolbar">
       <div class="route-info">
-        <span class="toolbar-kicker">Route review</span>
-        <strong>{{ routeMeta.name }}</strong>
+        <span class="toolbar-kicker">{{ isPre ? "Pre-test" : "Route review" }}</span>
+        <strong>{{ isPre ? "Baseline questionnaires" : routeMeta.name }}</strong>
       </div>
 
       <div class="toolbar-fields" aria-label="Review setup">
-        <label>
-          Instrument
-          <select v-model="instrumentId">
-            <option v-for="s in SURVEY_REGISTRY" :key="s.id" :value="s.id">
-              {{ s.label }}
-            </option>
-          </select>
+        <label class="phase-field">
+          Phase
+          <div class="phase-toggle" role="group" aria-label="Test phase">
+            <span class="phase-side" :class="{ on: isPre }">Pre</span>
+            <button
+              type="button"
+              class="phase-switch"
+              :class="{ post: !isPre }"
+              :aria-pressed="!isPre"
+              :aria-label="isPre ? 'Switch to Post-test' : 'Switch to Pre-test'"
+              @click="phase = isPre ? 'post' : 'pre'"
+            >
+              <span class="phase-knob" />
+            </button>
+            <span class="phase-side" :class="{ on: !isPre }">Post</span>
+          </div>
+          <span class="phase-hint">{{ phaseHint }}</span>
         </label>
         <label>
           Subject ID
@@ -186,46 +254,70 @@ async function submitAll() {
       </div>
 
       <div class="archive-block">
-        <p v-if="!allSegmentsComplete" class="submit-hint">
-          Complete all {{ segments.length }} segments before submitting
-        </p>
-        <button
-          type="button"
-          class="btn-submit-all"
-          :class="{ ready: allSegmentsComplete }"
-          :disabled="!allSegmentsComplete || saving"
-          @click="submitAll"
-        >
-          <span v-if="!allSegmentsComplete" class="button-progress">
-            <span>Progress {{ completedCount }} / {{ segments.length }}</span>
-            <span class="button-dots" aria-hidden="true">
-              <i
-              v-for="seg in segments"
-              :key="seg.id"
-              :class="{
-                done: confirmed[seg.id],
-                current: seg.id === activeSegmentId
-              }"
-              :title="seg.label"
-              :style="{
-                '--seg': seg.color,
-                background: confirmed[seg.id]
-                  ? seg.color
-                  : `color-mix(in srgb, ${seg.color} 35%, transparent)`,
-                  borderColor: seg.color
-                }"
-              />
+        <template v-if="isPre">
+          <p class="submit-hint">Complete GAD-7 and mood items, then submit in the form</p>
+          <p v-if="saveStatus" class="save-msg" :class="saveStatus.ok ? 'ok' : 'err'">
+            {{ saveStatus.message }}
+          </p>
+        </template>
+        <template v-else>
+          <p v-if="!allSegmentsComplete" class="submit-hint">
+            Complete all {{ segments.length }} segments before submitting
+          </p>
+          <button
+            type="button"
+            class="btn-submit-all"
+            :class="{ ready: allSegmentsComplete }"
+            :disabled="!allSegmentsComplete || saving"
+            @click="submitAll"
+          >
+            <span v-if="!allSegmentsComplete" class="button-progress">
+              <span>Progress {{ completedCount }} / {{ segments.length }}</span>
+              <span class="button-dots" aria-hidden="true">
+                <i
+                  v-for="seg in segments"
+                  :key="seg.id"
+                  :class="{
+                    done: confirmed[seg.id],
+                    current: seg.id === activeSegmentId
+                  }"
+                  :title="seg.label"
+                  :style="{
+                    '--seg': seg.color,
+                    background: confirmed[seg.id]
+                      ? seg.color
+                      : `color-mix(in srgb, ${seg.color} 35%, transparent)`,
+                    borderColor: seg.color
+                  }"
+                />
+              </span>
             </span>
-          </span>
-          <span v-else>{{ saving ? "Submitting…" : "Submit all segment surveys" }}</span>
-        </button>
-        <p v-if="saveStatus" class="save-msg" :class="saveStatus.ok ? 'ok' : 'err'">
-          {{ saveStatus.message }}
-        </p>
+            <span v-else>{{ saving ? "Submitting…" : "Submit all segment surveys" }}</span>
+          </button>
+          <p v-if="saveStatus" class="save-msg" :class="saveStatus.ok ? 'ok' : 'err'">
+            {{ saveStatus.message }}
+          </p>
+        </template>
       </div>
     </section>
 
-    <div class="review-body">
+    <!-- Pre-test: full-width questionnaire, no map -->
+    <div v-if="isPre" class="pretest-body">
+      <div class="pretest-pane">
+        <header class="pretest-head">
+          <p class="survey-kicker">Pre-test</p>
+          <h2>GAD-7 + mood adjectives</h2>
+        </header>
+        <PretestSurvey
+          v-model="pretestDraft"
+          :submitting="saving"
+          @submit="submitPretest"
+        />
+      </div>
+    </div>
+
+    <!-- Post-test: map + per-segment POMS-30 -->
+    <div v-else class="review-body">
       <div class="gallery-pane" aria-label="Street view gallery">
         <SegmentGalleryBar
           :empty="!activeSegment"
@@ -255,12 +347,13 @@ async function submitAll() {
             <span class="empty-step">Step 2</span>
             <p class="empty-title">No segment selected</p>
             <p class="empty-copy">
-              Click a path segment on the map to fill its survey. Confirm every segment, then submit above.
+              Click a path segment on the map to fill its mood survey. Confirm every segment, then
+              submit above.
             </p>
           </div>
           <SurveyHost
             v-else
-            :instrument-id="instrumentId"
+            instrument-id="posttest"
             :segment-meta="{
               id: activeSegment.id,
               label: activeSegment.label,
@@ -274,6 +367,7 @@ async function submitAll() {
     </div>
 
     <StreetViewLightbox
+      v-if="!isPre"
       :open="lightboxOpen"
       :points="galleryPoints"
       :current-id="lightboxPointId"
@@ -296,10 +390,12 @@ async function submitAll() {
 
 .review-toolbar {
   display: grid;
-  grid-template-columns: minmax(240px, 1.15fr) repeat(4, minmax(170px, 1fr));
+  grid-template-columns: minmax(220px, 1.05fr) minmax(420px, 1.6fr) minmax(220px, 1fr);
   align-items: center;
   gap: 18px 28px;
-  padding: 14px 20px;
+  padding: 14px 24px;
+  box-sizing: border-box;
+  width: 100%;
   border-bottom: 1px solid var(--line);
   background: rgba(12, 16, 22, 0.92);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
@@ -326,13 +422,12 @@ async function submitAll() {
   line-height: 1.25;
 }
 
-.muted {
-  color: var(--muted);
-  font-size: 12px;
-}
-
 .toolbar-fields {
-  display: contents;
+  display: grid;
+  grid-template-columns: minmax(150px, 0.95fr) minmax(120px, 1fr) minmax(120px, 1fr);
+  gap: 12px 14px;
+  align-items: start;
+  min-width: 0;
 }
 
 .toolbar-fields label {
@@ -345,8 +440,7 @@ async function submitAll() {
   font-weight: 700;
 }
 
-.toolbar-fields input,
-.toolbar-fields select {
+.toolbar-fields input {
   width: 100%;
   min-width: 0;
   height: 38px;
@@ -363,14 +457,81 @@ async function submitAll() {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.toolbar-fields input:focus,
-.toolbar-fields select:focus {
+.toolbar-fields input:focus {
   border-color: rgba(34, 211, 238, 0.7);
   box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
 }
 
 .toolbar-fields input::placeholder {
   color: var(--faint);
+}
+
+.phase-field {
+  gap: 4px;
+}
+
+.phase-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+}
+
+.phase-side {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  text-transform: none;
+  color: var(--faint);
+  min-width: 28px;
+}
+
+.phase-side.on {
+  color: var(--ink);
+}
+
+.phase-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  flex: none;
+  transition: background 0.18s, border-color 0.18s;
+}
+
+.phase-switch.post {
+  background: rgba(34, 211, 238, 0.22);
+  border-color: rgba(34, 211, 238, 0.45);
+}
+
+.phase-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e8eef4;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform 0.18s;
+}
+
+.phase-switch.post .phase-knob {
+  transform: translateX(20px);
+  background: #67e8f9;
+}
+
+.phase-hint {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--faint);
+  line-height: 1.3;
 }
 
 .archive-block {
@@ -479,7 +640,58 @@ async function submitAll() {
   color: #f87171;
 }
 
-/* Left: visual route context; right: focused questionnaire */
+.pretest-body {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  background: #0e131a;
+  scrollbar-gutter: stable;
+}
+
+.pretest-pane {
+  /* Match app header / nav horizontal inset (24px) and full content width */
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 18px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #0e131a;
+}
+
+.pretest-head {
+  flex: none;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.survey-kicker {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pretest-head h2 {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.pretest-pane :deep(.pretest) {
+  flex: none;
+  min-height: 0;
+  overflow: visible;
+}
+
 .review-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 520px;
@@ -569,11 +781,49 @@ async function submitAll() {
   overflow: hidden;
 }
 
+@media (max-width: 1180px) {
+  .review-toolbar {
+    grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.4fr);
+  }
+
+  .toolbar-fields {
+    grid-column: 2;
+  }
+
+  .archive-block {
+    grid-column: 1 / -1;
+    width: min(100%, 360px);
+    justify-self: end;
+  }
+
+  .review-body {
+    grid-template-columns: minmax(0, 1fr) 460px;
+  }
+
+  .survey-pane {
+    width: 460px;
+  }
+}
+
 @media (max-width: 900px) {
   .review-page {
     height: auto;
     max-height: none;
     overflow: visible;
+  }
+
+  .review-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar-fields {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .archive-block {
+    grid-column: auto;
+    width: 100%;
   }
 
   .review-body {
@@ -596,69 +846,9 @@ async function submitAll() {
   .survey-pane {
     grid-column: 1;
     grid-row: 3;
+    width: 100%;
     min-height: 420px;
   }
-}
 
-@media (max-width: 1180px) {
-  .review-toolbar {
-    grid-template-columns: minmax(190px, 0.65fr) minmax(400px, 1.35fr);
-  }
-
-  .toolbar-fields {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-column: 2;
-    gap: 12px;
-    min-width: 0;
-  }
-
-  .archive-block {
-    grid-column: 1 / -1;
-    width: min(100%, 360px);
-    justify-self: end;
-  }
-
-  .review-body {
-    grid-template-columns: minmax(0, 1fr) 460px;
-  }
-
-  .survey-pane {
-    width: 460px;
-  }
-}
-
-@media (max-width: 900px) {
-  .review-toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .toolbar-fields {
-    grid-column: auto;
-    grid-template-columns: minmax(180px, 1.2fr) 1fr 1fr;
-  }
-
-  .archive-block {
-    grid-column: auto;
-    width: 100%;
-  }
-
-  .review-body {
-    grid-template-columns: 1fr;
-  }
-
-  .survey-pane {
-    width: 100%;
-  }
-}
-
-@media (max-width: 620px) {
-  .review-toolbar {
-    padding: 14px;
-  }
-
-  .toolbar-fields {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

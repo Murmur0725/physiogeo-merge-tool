@@ -1,22 +1,33 @@
 /** Per-instrument draft completeness + score helpers (no time fields). */
 
+import {
+  gad7AnswersFromDraft,
+  isGad7Complete,
+  scoreGad7
+} from "./gad7";
+import {
+  isPoms30Complete,
+  poms30AnswersFromDraft,
+  scorePoms30
+} from "./poms30";
+
 const PSS_ITEMS = 10;
 const PSS_REVERSE = new Set([3, 4, 6, 7]);
-
-const POMS_ITEMS = 10;
 const ROS_ITEMS = 6;
-
 const CUSTOM_FIELDS = ["pleasant", "safety", "interest", "walkability"];
 
 export function isInstrumentComplete(instrumentId, draft = {}) {
   switch (instrumentId) {
+    case "gad7":
+      return isGad7Complete(draft);
+    case "pomsSf":
+    case "posttest":
+      return isPoms30Complete(draft);
+    case "pretest":
+      return isGad7Complete(draft) && isPoms30Complete(draft);
     case "pss":
       return Array.from({ length: PSS_ITEMS }, (_, i) => i).every((i) =>
         Number.isFinite(draft[`q${i}`])
-      );
-    case "pomsSf":
-      return Array.from({ length: POMS_ITEMS }, (_, i) => i).every((i) =>
-        Number.isFinite(draft[`m${i}`])
       );
     case "ros":
       return Array.from({ length: ROS_ITEMS }, (_, i) => i).every((i) =>
@@ -30,6 +41,13 @@ export function isInstrumentComplete(instrumentId, draft = {}) {
 
 export function buildScores(instrumentId, draft = {}) {
   switch (instrumentId) {
+    case "gad7":
+      return scoreGad7(draft);
+    case "pomsSf":
+    case "posttest":
+      return scorePoms30(draft);
+    case "pretest":
+      return { ...scoreGad7(draft), ...scorePoms30(draft) };
     case "pss": {
       let total = 0;
       for (let i = 0; i < PSS_ITEMS; i += 1) {
@@ -37,11 +55,6 @@ export function buildScores(instrumentId, draft = {}) {
         total += PSS_REVERSE.has(i) ? 4 - raw : raw;
       }
       return { pssTotal: total };
-    }
-    case "pomsSf": {
-      const vals = Array.from({ length: POMS_ITEMS }, (_, i) => Number(draft[`m${i}`]));
-      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-      return { pomsSfMean: Number(mean.toFixed(2)) };
     }
     case "ros": {
       const vals = Array.from({ length: ROS_ITEMS }, (_, i) => Number(draft[`r${i}`]));
@@ -60,7 +73,19 @@ export function buildScores(instrumentId, draft = {}) {
 }
 
 export function normalizeAnswers(instrumentId, draft = {}) {
-  if (instrumentId === "customEval" || !["pss", "pomsSf", "ros"].includes(instrumentId)) {
+  if (instrumentId === "pretest") {
+    return {
+      ...gad7AnswersFromDraft(draft),
+      ...poms30AnswersFromDraft(draft)
+    };
+  }
+  if (instrumentId === "pomsSf" || instrumentId === "posttest") {
+    return poms30AnswersFromDraft(draft);
+  }
+  if (instrumentId === "gad7") {
+    return gad7AnswersFromDraft(draft);
+  }
+  if (instrumentId === "customEval" || !["pss", "ros"].includes(instrumentId)) {
     return { ...draft, note: draft.note || "" };
   }
   return { ...draft };

@@ -296,3 +296,39 @@ export async function saveReviewSession({
     storageWarning: upErr ? upErr.message : null
   };
 }
+
+/**
+ * Pre-test (no route): one synthetic segment + one survey response.
+ */
+export async function savePretestSession({
+  subjectId,
+  subjectName,
+  answers,
+  scores
+}) {
+  const pretestSegment = {
+    id: "pretest",
+    label: "Pre-test",
+    order: 0,
+    geometry: [],
+    startWaypointId: null,
+    endWaypointId: null,
+    samplePoints: []
+  };
+
+  return saveReviewSession({
+    subjectId,
+    subjectName,
+    routeConfigId: "pretest",
+    routeName: "Pre-test (no route)",
+    instrumentId: "pretest",
+    segments: [pretestSegment],
+    responses: [
+      {
+        segmentId: "pretest",
+        answers,
+        scores
+      }
+    ]
+  });
+}

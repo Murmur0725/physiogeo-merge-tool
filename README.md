@@ -53,6 +53,10 @@ env vars are configured (insert-only; anon cannot SELECT).
    python3 scripts/fetch_baseline.py --list --kind all
    python3 scripts/fetch_baseline.py --subject 001 --kind experiment_cd --out ./exports
    python3 scripts/fetch_baseline.py --subject 001 --kind raw --out ./raws
+
+   # Per-subject pack: baseline.csv + merge.csv + survey.csv + {编号}-{姓名}-raw/
+   python3 scripts/export_subject_packs.py --list
+   python3 scripts/export_subject_packs.py --out ./exports/subjects
    ```
 
 Storage layout under bucket `merge-private`:

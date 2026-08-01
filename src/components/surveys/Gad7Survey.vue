@@ -1,18 +1,12 @@
 <script setup>
 import { computed } from "vue";
-import {
-  POMS30_ITEMS,
-  isPoms30Complete,
-  poms30AnswersFromDraft,
-  scorePoms30
-} from "../../lib/poms30";
+import { GAD7_ITEMS, GAD7_SCALE, isGad7Complete, scoreGad7 } from "../../lib/gad7";
 
 const props = defineProps({
   segmentMeta: { type: Object, default: null },
   modelValue: { type: Object, default: () => ({}) },
   /** When true, hide local submit (used inside PretestSurvey). */
-  embed: { type: Boolean, default: false },
-  submitLabel: { type: String, default: "Confirm this segment" }
+  embed: { type: Boolean, default: false }
 });
 const emit = defineEmits(["update:modelValue", "submit"]);
 
@@ -22,16 +16,16 @@ const answers = computed({
 });
 
 function setItem(i, v) {
-  answers.value = { ...answers.value, [`m${i}`]: v };
+  answers.value = { ...answers.value, [`g${i}`]: v };
 }
 
-const complete = computed(() => isPoms30Complete(answers.value));
+const complete = computed(() => isGad7Complete(answers.value));
 
 function submit() {
   if (!complete.value) return;
   emit("submit", {
-    answers: poms30AnswersFromDraft(answers.value),
-    scores: scorePoms30(answers.value)
+    answers: { ...answers.value },
+    scores: scoreGad7(answers.value)
   });
 }
 </script>
@@ -39,22 +33,22 @@ function submit() {
 <template>
   <div class="survey-body" :class="{ embed }">
     <p class="hint">
-      How do you feel right now? 0 = Not at all · 4 = Extremely
-      <span v-if="segmentMeta?.label"> · {{ segmentMeta.label }}</span>
+      Over the last 2 weeks, how often have you been bothered by the following?
+      0 = Not at all · 3 = Nearly every day
     </p>
     <ol class="items" :class="{ row: embed }">
-      <li v-for="(text, i) in POMS30_ITEMS" :key="i">
+      <li v-for="(text, i) in GAD7_ITEMS" :key="i">
         <p>{{ text }}</p>
-        <div class="scale" :class="{ 'cols-5': embed }">
-          <label v-for="v in [0, 1, 2, 3, 4]" :key="v">
+        <div class="scale" :class="{ 'cols-4': embed }">
+          <label v-for="opt in GAD7_SCALE" :key="opt.v" :title="opt.label">
             <input
               type="radio"
-              :name="`poms30-${segmentMeta?.id || 'pre'}-${i}`"
-              :value="v"
-              :checked="answers[`m${i}`] === v"
-              @change="setItem(i, v)"
+              :name="`gad7-${segmentMeta?.id || 'pre'}-${i}`"
+              :value="opt.v"
+              :checked="answers[`g${i}`] === opt.v"
+              @change="setItem(i, opt.v)"
             />
-            <span>{{ v }}</span>
+            <span>{{ opt.v }}</span>
           </label>
         </div>
       </li>
@@ -66,7 +60,7 @@ function submit() {
       :disabled="!complete"
       @click="submit"
     >
-      {{ submitLabel }}
+      Confirm GAD-7
     </button>
   </div>
 </template>

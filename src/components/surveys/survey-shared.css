@@ -48,6 +48,60 @@
   line-height: 1.45;
 }
 
+/* Question + options on one row (wide pretest / embed layouts) */
+.items.row {
+  padding: 0 2px 2px 28px;
+  gap: 6px;
+}
+
+.items.row li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px 20px;
+  padding: 8px 12px;
+}
+
+.items.row li p {
+  margin: 0;
+  min-width: 0;
+}
+
+.items.row .scale {
+  flex: none;
+  width: max-content;
+  min-width: 220px;
+}
+
+.items.row .scale.cols-4 {
+  grid-template-columns: repeat(4, minmax(48px, 1fr));
+  min-width: 220px;
+}
+
+.items.row .scale.cols-5 {
+  grid-template-columns: repeat(5, minmax(44px, 1fr));
+  min-width: 260px;
+}
+
+.items.row .scale label {
+  min-height: 40px;
+  padding: 4px 6px;
+}
+
+@media (max-width: 720px) {
+  .items.row li {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .items.row .scale,
+  .items.row .scale.cols-4,
+  .items.row .scale.cols-5 {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 .scale {
   display: grid;
   grid-template-columns: repeat(5, minmax(36px, 1fr));
