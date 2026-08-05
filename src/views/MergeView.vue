@@ -21,7 +21,7 @@ const running = ref(false);
 const rows = ref([]);
 const csv = ref("");
 const logs = ref([
-  "Ready. Enter subject ID and name, upload all 5 files, then generate. The site downloads CD merge only; CD/AB/raw files are archived privately."
+  "Ready. Enter equipment ID and name, upload all 5 files, then generate. The site downloads CD merge only; CD/AB/raw files are archived privately."
 ]);
 const metrics = reactive({ rows: "--", gps: "--", rr: "--", eeg: "--", hr: "--" });
 const rangeText = ref("");
@@ -60,7 +60,7 @@ async function generate() {
   try {
     const id = subjectId.value.trim();
     const name = subjectName.value.trim();
-    log(`Subject: ${id} ${name}`);
+    log(`Equipment: ${id} ${name}`);
     log("Windows: C→D for site merge; A→B aligned in background. Archiving CD + AB + raw files.");
 
     const { experiment, baseline } = await runMergeWithBaseline(files, log);
@@ -115,9 +115,9 @@ function download() {
   <div class="merge-layout">
     <aside class="side">
       <section class="card">
-        <h2><span class="dot" style="background: var(--rainbow)"></span>Subject</h2>
+        <h2><span class="dot" style="background: var(--rainbow)"></span>Equipment</h2>
         <label class="field">
-          <span>Subject ID</span>
+          <span>Equipment ID</span>
           <input v-model="subjectId" type="text" placeholder="e.g. 001" autocomplete="off" />
         </label>
         <label class="field">
@@ -148,7 +148,7 @@ function download() {
         <button class="btn btn-ghost" :disabled="!csv" @click="download">Download CD Merge</button>
       </div>
       <p v-if="baselineStatus" class="hint gate-hint">{{ baselineStatus }}</p>
-      <p v-if="!canMerge" class="hint gate-hint">Enter subject ID and name, and upload all 5 files to generate.</p>
+      <p v-if="!canMerge" class="hint gate-hint">Enter equipment ID and name, and upload all 5 files to generate.</p>
     </aside>
 
     <main class="main">

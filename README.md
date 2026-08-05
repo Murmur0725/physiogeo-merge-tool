@@ -10,7 +10,7 @@ Vue 3 + Vite, deployed on GitHub Pages.
 
 ## Usage
 
-1. Fill in 编号 (Subject ID) and 姓名 (Name).
+1. Fill in 编号 (Equipment ID) and 姓名 (Name).
 2. Upload the five raw files:
 
    - Mark CSV: `展示时间`, `备注`

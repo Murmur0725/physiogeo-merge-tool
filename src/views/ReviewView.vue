@@ -244,7 +244,7 @@ async function submitAll() {
           <span class="phase-hint">{{ phaseHint }}</span>
         </label>
         <label>
-          Subject ID
+          Equipment ID
           <input v-model="subjectId" type="text" placeholder="e.g. 001" autocomplete="off" />
         </label>
         <label>
