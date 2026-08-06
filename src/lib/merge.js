@@ -209,13 +209,15 @@ export function convertWallClock(date, fromTimeZone, toTimeZone) {
 }
 
 export const EEG_TIMEZONE_OPTIONS = {
-  chicago: { id: "chicago", label: "Chicago", from: null, to: null },
-  beijing: {
-    id: "beijing",
-    label: "Beijing",
+  // Chicago: EEG Date wall clock is Beijing → convert to Chicago for alignment.
+  chicago: {
+    id: "chicago",
+    label: "Chicago",
     from: "Asia/Shanghai",
     to: "America/Chicago"
-  }
+  },
+  // Beijing: keep EEG Date wall clock as written (no conversion).
+  beijing: { id: "beijing", label: "Beijing", from: null, to: null }
 };
 
 function mean(values) {

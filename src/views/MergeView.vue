@@ -11,7 +11,7 @@ import { archiveSession, isArchiveConfigured } from "../lib/archive";
 
 const subjectId = ref("");
 const subjectName = ref("");
-/** EEG Date/日期 clock: chicago = as-is; beijing = convert Asia/Shanghai → America/Chicago */
+/** EEG Date/日期 clock: chicago = convert Asia/Shanghai → America/Chicago; beijing = as-is */
 const eegTimezone = ref("chicago");
 
 const fileSpecs = [
@@ -69,7 +69,7 @@ async function generate() {
     const name = subjectName.value.trim();
     log(`Equipment: ${id} ${name}`);
     log(
-      `EEG timezone: ${EEG_TIMEZONE_OPTIONS[eegTimezone.value]?.label || eegTimezone.value}`
+      `Route timezone: ${EEG_TIMEZONE_OPTIONS[eegTimezone.value]?.label || eegTimezone.value}`
     );
     log("Windows: C→D for site merge; A→B aligned in background. Archiving CD + AB + raw files.");
 
@@ -137,7 +137,7 @@ function download() {
           <input v-model="subjectName" type="text" placeholder="e.g. Alex" autocomplete="off" />
         </label>
         <label class="field">
-          <span>EEG timezone</span>
+          <span>Route timezone</span>
           <select v-model="eegTimezone">
             <option value="chicago">Chicago</option>
             <option value="beijing">Beijing</option>
