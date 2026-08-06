@@ -4,7 +4,7 @@ A browser-based toolkit for the Polite Study (Chicago Workshop): merge GPS,
 EEG, HR, RR, and Mark files into a second-level aligned CSV. Built with
 Vue 3 + Vite, deployed on GitHub Pages.
 
-**Live:** https://murmur0725.github.io/physiogeo/
+**Live:** https://murmur0725.github.io/physiogeo-merge-tool/
 
 **Pages:** Merge (`/`) · Review (`/review`) · Demo (`/demo`) — biometric 3D pillars with street views and spectrograms from `public/biometric-demo/`.
 
