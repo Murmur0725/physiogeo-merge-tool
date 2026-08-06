@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build && cp dist/index.html dist/404.html",
     "preview": "vite preview",
+    "route:build:ricky": "node scripts/build_route_from_gpx.mjs \"../raw——data/Ricky/时间戳记录_20260805_180320(1).csv\" \"../raw——data/Ricky/Ricky_Sun_2026-08-05_17-02-26.GPX\" \"src/config/routes/chicago-ricky-2026-08-05-cd.json\" street 12 chicago 41.877120,-87.627613",
     "streetviews:fetch": "node scripts/fetch_mapillary_streetviews.mjs",
     "streetviews:import": "python3 scripts/import_geotagged_streetviews.py"
   },

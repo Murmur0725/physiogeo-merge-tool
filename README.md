@@ -19,6 +19,7 @@ Vue 3 + Vite, deployed on GitHub Pages.
      - Legacy fallback for merge only: `开始` / `结束`
    - RR CSV: `timestamp`, `rr_ms`
    - EEG Excel: `Date/日期`, `时长(Duration)/秒(ss)`, `Time-set/时间集合`, EEG feature rows
+     - On the Merge page, set **EEG timezone** to `Beijing` or `Chicago` to match the clock used in the EEG file (default: Chicago). Beijing times are converted to Chicago before alignment with Mark / RR / HR / GPX.
    - GPX: `trkpt` latitude, longitude, and `time`
    - Heart-rate CSV: metadata `Date`, `Start time`, and sample columns `Time`, `HR (bpm)`
 

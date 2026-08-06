@@ -147,6 +147,77 @@ function parseNumber(value) {
   return Number.isFinite(n) ? n : "";
 }
 
+/**
+ * Reinterpret wall-clock components of `date` as `fromTimeZone`, return a
+ * Date whose local getters match the wall clock in `toTimeZone`.
+ */
+export function convertWallClock(date, fromTimeZone, toTimeZone) {
+  if (!date || Number.isNaN(date.getTime())) return date;
+  if (!fromTimeZone || !toTimeZone || fromTimeZone === toTimeZone) return date;
+
+  const y = date.getFullYear();
+  const mo = date.getMonth() + 1;
+  const d = date.getDate();
+  const hh = date.getHours();
+  const mi = date.getMinutes();
+  const ss = date.getSeconds();
+  const wall = `${y}-${pad(mo)}-${pad(d)}T${pad(hh)}:${pad(mi)}:${pad(ss)}`;
+
+  // Asia/Shanghai is fixed UTC+8 — attach offset so Date parses an absolute instant.
+  let instant;
+  if (fromTimeZone === "Asia/Shanghai") {
+    instant = new Date(`${wall}+08:00`);
+  } else {
+    // Generic path: guess UTC then refine with Intl (rare for this app).
+    instant = new Date(`${wall}Z`);
+    const probe = new Intl.DateTimeFormat("en-US", {
+      timeZone: fromTimeZone,
+      timeZoneName: "shortOffset"
+    });
+    // Fall through with Z guess; Chicago←Beijing is the supported path.
+    void probe;
+  }
+  if (Number.isNaN(instant.getTime())) return date;
+
+  const bag = {};
+  new Intl.DateTimeFormat("en-US", {
+    timeZone: toTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  })
+    .formatToParts(instant)
+    .forEach((p) => {
+      if (p.type !== "literal") bag[p.type] = p.value;
+    });
+
+  let hour = Number(bag.hour);
+  if (hour === 24) hour = 0;
+  return new Date(
+    Number(bag.year),
+    Number(bag.month) - 1,
+    Number(bag.day),
+    hour,
+    Number(bag.minute),
+    Number(bag.second),
+    0
+  );
+}
+
+export const EEG_TIMEZONE_OPTIONS = {
+  chicago: { id: "chicago", label: "Chicago", from: null, to: null },
+  beijing: {
+    id: "beijing",
+    label: "Beijing",
+    from: "Asia/Shanghai",
+    to: "America/Chicago"
+  }
+};
+
 function mean(values) {
   const nums = values.map(Number).filter(Number.isFinite);
   return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : "";
@@ -256,7 +327,7 @@ async function loadGPX(file) {
   return points;
 }
 
-async function loadEEG(file) {
+async function loadEEG(file, options = {}) {
   const buffer = await readArrayBuffer(file);
   const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -265,7 +336,20 @@ async function loadEEG(file) {
   rows.forEach((row) => {
     if (row[0] !== undefined && row[0] !== null) dict[String(row[0]).trim()] = row[1] ?? "";
   });
-  const recordEnd = parseLocalDateTime(dict["Date/日期"]);
+  let recordEnd = parseLocalDateTime(dict["Date/日期"]);
+  const tz = EEG_TIMEZONE_OPTIONS[options.eegTimezone] || EEG_TIMEZONE_OPTIONS.chicago;
+  if (tz.from && tz.to) {
+    const before = formatTime(recordEnd);
+    recordEnd = convertWallClock(recordEnd, tz.from, tz.to);
+    if (typeof options.onTimezoneConvert === "function") {
+      options.onTimezoneConvert({
+        before,
+        after: formatTime(recordEnd),
+        from: tz.from,
+        to: tz.to
+      });
+    }
+  }
   const duration = Number(dict["时长(Duration)/秒(ss)"]);
   const eegStart = new Date(recordEnd.getTime() - duration * 1000);
   const offsets = splitSeries(dict["Time-set/时间集合"]).map((item) => Number(item));
@@ -395,6 +479,7 @@ function assembleRows(timeline, { rr, eeg, gpx, heartRate, marks }) {
 /**
  * Run the merge pipeline for one window.
  * @param {"cd"|"ab"} [options.window="cd"] — CD = website merge; AB = baseline (archive only)
+ * @param {"chicago"|"beijing"} [options.eegTimezone="chicago"] — EEG Date/日期 clock
  */
 export async function runMerge(files, log = () => {}, options = {}) {
   const windowKey = options.window || "cd";
@@ -407,7 +492,12 @@ export async function runMerge(files, log = () => {}, options = {}) {
   log("Reading RR file...");
   const rr = await loadRR(files.rr);
   log("Reading EEG file...");
-  const eeg = await loadEEG(files.eeg);
+  const eeg = await loadEEG(files.eeg, {
+    eegTimezone: options.eegTimezone || "chicago",
+    onTimezoneConvert: ({ before, after }) => {
+      log(`EEG Date: ${before} (Beijing) → ${after} (Chicago)`);
+    }
+  });
   log("Reading GPX file...");
   const gpx = await loadGPX(files.gpx);
   log("Reading Heart Rate file...");
@@ -419,8 +509,10 @@ export async function runMerge(files, log = () => {}, options = {}) {
 /**
  * Generate experiment (CD) merge for download and baseline (AB) merge for archive.
  * Baseline is never exposed as a website download — callers must archive it server-side.
+ * @param {"chicago"|"beijing"} [options.eegTimezone="chicago"]
  */
-export async function runMergeWithBaseline(files, log = () => {}) {
+export async function runMergeWithBaseline(files, log = () => {}, options = {}) {
+  const eegTimezone = options.eegTimezone || "chicago";
   log("Reading Mark file...");
   const allMarks = await loadAllMarks(files.marks);
   const experimentMarks = resolveWindow(allMarks, "cd");
@@ -439,7 +531,12 @@ export async function runMergeWithBaseline(files, log = () => {}) {
 
   log("Reading RR / EEG / GPX / HR once for both windows...");
   const rr = await loadRR(files.rr);
-  const eeg = await loadEEG(files.eeg);
+  const eeg = await loadEEG(files.eeg, {
+    eegTimezone,
+    onTimezoneConvert: ({ before, after }) => {
+      log(`EEG Date: ${before} (Beijing) → ${after} (Chicago)`);
+    }
+  });
   const gpx = await loadGPX(files.gpx);
   const heartRate = await loadHeartRate(files.hr);
   const sensors = { rr, eeg, gpx, heartRate };

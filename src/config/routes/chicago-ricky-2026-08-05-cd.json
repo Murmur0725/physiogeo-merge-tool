@@ -1,0 +1,319 @@
+{
+  "id": "chicago-ricky-2026-08-05-cd",
+  "name": "Chicago Loop · Ricky CD",
+  "instrumentId": "customEval",
+  "streetViewSampleCount": 5,
+  "source": {
+    "gpx": "Ricky_Sun_2026-08-05_17-02-26.GPX",
+    "marks": "时间戳记录_20260805_180320(1).csv",
+    "startLocal": "2026-08-05 17:31:57",
+    "endLocal": "2026-08-05 17:50:05",
+    "startUtc": "2026-08-05T22:31:57.766Z",
+    "endUtc": "2026-08-05T22:50:05.948Z",
+    "marksTimezone": "timestamp-column",
+    "rawPointCount": 1090,
+    "simplifiedPointCount": 7,
+    "closedLoop": false,
+    "distanceMeters": 1231,
+    "mode": "map-corners-photo-dock",
+    "simplifyToleranceMeters": 12,
+    "mapMatched": true,
+    "closedAlongStreets": true,
+    "endFollowsGpx": false,
+    "fixedEnd": null,
+    "note": "Start docked from IMG_3082, end docked from IMG_3101 onto street route",
+    "startPhoto": {
+      "label": "IMG_3082",
+      "lat": 41.8776972,
+      "lng": -87.6277778,
+      "from": "config"
+    },
+    "endPhoto": {
+      "label": "IMG_3101",
+      "lat": 41.8770139,
+      "lng": -87.6275556,
+      "from": "config"
+    },
+    "dockStart": {
+      "lat": 41.87770055089248,
+      "lng": -87.62753212118068,
+      "distM": 20.4
+    },
+    "dockEnd": {
+      "lat": 41.8770139,
+      "lng": -87.627515,
+      "distM": 3.4
+    }
+  },
+  "waypoints": [
+    {
+      "id": "w0",
+      "lng": -87.627532,
+      "lat": 41.877701,
+      "label": "C · Start (IMG_3082 dock)",
+      "mark": "C"
+    },
+    {
+      "id": "w1",
+      "lng": -87.627564,
+      "lat": 41.879413,
+      "label": "Corner 1",
+      "mark": null
+    },
+    {
+      "id": "w2",
+      "lng": -87.632291,
+      "lat": 41.879357,
+      "label": "Corner 2",
+      "mark": null
+    },
+    {
+      "id": "w3",
+      "lng": -87.632263,
+      "lat": 41.878194,
+      "label": "Corner 3",
+      "mark": null
+    },
+    {
+      "id": "w4",
+      "lng": -87.63079,
+      "lat": 41.87816,
+      "label": "Corner 4",
+      "mark": null
+    },
+    {
+      "id": "w5",
+      "lng": -87.630714,
+      "lat": 41.876966,
+      "label": "Corner 5",
+      "mark": null
+    },
+    {
+      "id": "w6",
+      "lng": -87.627515,
+      "lat": 41.877014,
+      "label": "D · End (IMG_3101 dock)",
+      "mark": "D"
+    }
+  ],
+  "splits": [
+    {
+      "afterWaypointId": "w0",
+      "segmentLabel": "Section 1"
+    },
+    {
+      "afterWaypointId": "w2",
+      "segmentLabel": "Section 2"
+    },
+    {
+      "afterWaypointId": "w4",
+      "segmentLabel": "Section 3"
+    }
+  ],
+  "segmentSamples": {
+    "Section 1": [
+      {
+        "id": "photo-img_3082",
+        "lng": -87.6277778,
+        "lat": 41.8776972,
+        "label": "IMG_3082",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3082.jpg",
+        "capturedAt": "2026:08:05 18:55:49",
+        "compassAngle": 87,
+        "imageDistanceMeters": 14.7,
+        "routeDistanceMeters": 20.4
+      },
+      {
+        "id": "photo-img_3083",
+        "lng": -87.6275722,
+        "lat": 41.8782889,
+        "label": "IMG_3083",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3083.jpg",
+        "capturedAt": "2026:08:05 18:56:39",
+        "compassAngle": 83.2,
+        "imageDistanceMeters": 1.3,
+        "routeDistanceMeters": 2.4
+      },
+      {
+        "id": "photo-img_3084",
+        "lng": -87.627625,
+        "lat": 41.8790361,
+        "label": "IMG_3084",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3084.jpg",
+        "capturedAt": "2026:08:05 18:57:40",
+        "compassAngle": 84.6,
+        "imageDistanceMeters": 4.4,
+        "routeDistanceMeters": 5.6
+      },
+      {
+        "id": "photo-img_3085",
+        "lng": -87.6275944,
+        "lat": 41.8793861,
+        "label": "IMG_3085",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3085.jpg",
+        "capturedAt": "2026:08:05 18:58:49",
+        "compassAngle": 325.1,
+        "imageDistanceMeters": 2.5,
+        "routeDistanceMeters": 2.6
+      },
+      {
+        "id": "photo-img_3086",
+        "lng": -87.6287083,
+        "lat": 41.8794972,
+        "label": "IMG_3086",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3086.jpg",
+        "capturedAt": "2026:08:05 19:00:14",
+        "compassAngle": 331.6,
+        "imageDistanceMeters": 9,
+        "routeDistanceMeters": 10.8
+      },
+      {
+        "id": "photo-img_3087",
+        "lng": -87.6290889,
+        "lat": 41.8794889,
+        "label": "IMG_3087",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3087.jpg",
+        "capturedAt": "2026:08:05 19:00:42",
+        "compassAngle": 243.8,
+        "imageDistanceMeters": 8.2,
+        "routeDistanceMeters": 10.4
+      },
+      {
+        "id": "photo-img_3088",
+        "lng": -87.6302194,
+        "lat": 41.8793694,
+        "label": "IMG_3088",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3088.jpg",
+        "capturedAt": "2026:08:05 19:01:56",
+        "compassAngle": 278.3,
+        "imageDistanceMeters": 4.7,
+        "routeDistanceMeters": 1.3
+      },
+      {
+        "id": "photo-img_3089",
+        "lng": -87.6307222,
+        "lat": 41.8794167,
+        "label": "IMG_3089",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3089.jpg",
+        "capturedAt": "2026:08:05 19:02:53",
+        "compassAngle": 282.5,
+        "imageDistanceMeters": 0.7,
+        "routeDistanceMeters": 4.5
+      },
+      {
+        "id": "photo-img_3090",
+        "lng": -87.63205,
+        "lat": 41.8794556,
+        "label": "IMG_3090",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3090.jpg",
+        "capturedAt": "2026:08:05 19:04:10",
+        "compassAngle": 276.7,
+        "imageDistanceMeters": 5.4,
+        "routeDistanceMeters": 10.6
+      },
+      {
+        "id": "photo-img_3091",
+        "lng": -87.6322111,
+        "lat": 41.8793417,
+        "label": "IMG_3091",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3091.jpg",
+        "capturedAt": "2026:08:05 19:04:35",
+        "compassAngle": 181.3,
+        "imageDistanceMeters": 6.7,
+        "routeDistanceMeters": 1.8
+      }
+    ],
+    "Section 2": [
+      {
+        "id": "photo-img_3092",
+        "lng": -87.6322389,
+        "lat": 41.8783,
+        "label": "IMG_3092",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3092.jpg",
+        "capturedAt": "2026:08:05 19:05:45",
+        "compassAngle": 182.8,
+        "imageDistanceMeters": 2.2,
+        "routeDistanceMeters": 2.2
+      },
+      {
+        "id": "photo-img_3093",
+        "lng": -87.6321278,
+        "lat": 41.8781778,
+        "label": "IMG_3093",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3093.jpg",
+        "capturedAt": "2026:08:05 19:06:09",
+        "compassAngle": 82.8,
+        "imageDistanceMeters": 3.6,
+        "routeDistanceMeters": 1.4
+      }
+    ],
+    "Section 3": [
+      {
+        "id": "photo-img_3094",
+        "lng": -87.630775,
+        "lat": 41.8780528,
+        "label": "IMG_3094",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3094.jpg",
+        "capturedAt": "2026:08:05 19:07:53",
+        "compassAngle": 167.3,
+        "imageDistanceMeters": 1.7,
+        "routeDistanceMeters": 0.7
+      },
+      {
+        "id": "photo-img_3096",
+        "lng": -87.6306694,
+        "lat": 41.8775028,
+        "label": "IMG_3096",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3096.jpg",
+        "capturedAt": "2026:08:05 19:08:38",
+        "compassAngle": 177.5,
+        "imageDistanceMeters": 6.7,
+        "routeDistanceMeters": 6.5
+      },
+      {
+        "id": "photo-img_3097",
+        "lng": -87.6306611,
+        "lat": 41.8769778,
+        "label": "IMG_3097",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3097.jpg",
+        "capturedAt": "2026:08:05 19:10:13",
+        "compassAngle": 122.1,
+        "imageDistanceMeters": 1.3,
+        "routeDistanceMeters": 1.2
+      },
+      {
+        "id": "photo-img_3099",
+        "lng": -87.6298222,
+        "lat": 41.8769417,
+        "label": "IMG_3099",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3099.jpg",
+        "capturedAt": "2026:08:05 19:11:06",
+        "compassAngle": 169.5,
+        "imageDistanceMeters": 3.9,
+        "routeDistanceMeters": 4.2
+      },
+      {
+        "id": "photo-img_3100",
+        "lng": -87.6285778,
+        "lat": 41.8769611,
+        "label": "IMG_3100",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3100.jpg",
+        "capturedAt": "2026:08:05 19:12:32",
+        "compassAngle": 90,
+        "imageDistanceMeters": 3.5,
+        "routeDistanceMeters": 4.1
+      },
+      {
+        "id": "photo-img_3101",
+        "lng": -87.6275556,
+        "lat": 41.8770139,
+        "label": "IMG_3101",
+        "thumbUrl": "streetviews/chicago-ricky-2026-08-05-cd/img_3101.jpg",
+        "capturedAt": "2026:08:05 19:13:33",
+        "compassAngle": 41.1,
+        "imageDistanceMeters": 0.8,
+        "routeDistanceMeters": 0.1
+      }
+    ]
+  }
+}

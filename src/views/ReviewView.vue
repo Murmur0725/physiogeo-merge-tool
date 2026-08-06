@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
-import decodedRoute from "../config/routes/shenzhen-2026-07-17-cd.json";
+import decodedRoute from "../config/routes/chicago-ricky-2026-08-05-cd.json";
 import { parseRouteConfig } from "../lib/parseRouteConfig";
 import { savePretestSession, saveReviewSession } from "../lib/reviewArchive";
 import {
@@ -21,6 +21,17 @@ const parsed = parseRouteConfig(decodedRoute);
 const phase = ref("pre");
 const subjectId = ref("");
 const subjectName = ref("");
+const subjectAge = ref("");
+const subjectGender = ref("");
+const subjectEducation = ref("");
+const subjectMajor = ref("");
+
+const GENDER_OPTIONS = [
+  "Female",
+  "Male",
+  "Non-binary",
+  "Other"
+];
 
 const hoverSegmentId = ref(null);
 const activeSegmentId = ref(null);
@@ -57,10 +68,6 @@ const allSegmentsComplete = computed(
   () =>
     segments.value.length > 0 &&
     segments.value.every((s) => Boolean(confirmed[s.id]))
-);
-
-const phaseHint = computed(() =>
-  isPre.value ? "No route · GAD-7 + mood" : "Per segment · mood"
 );
 
 function clearSessionState() {
@@ -150,11 +157,28 @@ async function submitPretest(payload) {
     saveStatus.value = { ok: false, message: "Please complete GAD-7 and all mood items." };
     return;
   }
+  const age = String(subjectAge.value || "").trim();
+  const gender = String(subjectGender.value || "").trim();
+  const education = String(subjectEducation.value || "").trim();
+  const major = String(subjectMajor.value || "").trim();
+  if (!age || !gender || !education || !major) {
+    saveStatus.value = {
+      ok: false,
+      message: "Please fill Age, Gender, Education, and Major."
+    };
+    return;
+  }
   saving.value = true;
   saveStatus.value = null;
   try {
     const scores = payload?.scores || buildScores("pretest", answers);
-    const normalized = normalizeAnswers("pretest", answers);
+    const normalized = {
+      ...normalizeAnswers("pretest", answers),
+      age,
+      gender,
+      education,
+      major
+    };
     pretestConfirmed.value = { answers: normalized, scores };
     const result = await savePretestSession({
       subjectId: subjectId.value.trim() || "anonymous",
@@ -220,11 +244,11 @@ async function submitAll() {
   <main class="review-page" :class="{ 'phase-pre': isPre, 'phase-post': !isPre }">
     <section class="review-toolbar">
       <div class="route-info">
-        <span class="toolbar-kicker">{{ isPre ? "Pre-test" : "Route review" }}</span>
-        <strong>{{ isPre ? "Baseline questionnaires" : routeMeta.name }}</strong>
+        <span class="toolbar-kicker">Review</span>
+        <strong>{{ isPre ? "Pre-test" : "Post-test" }}</strong>
       </div>
 
-      <div class="toolbar-fields" aria-label="Review setup">
+      <div class="toolbar-fields" :class="{ 'is-pre': isPre }" aria-label="Review setup">
         <label class="phase-field">
           Phase
           <div class="phase-toggle" role="group" aria-label="Test phase">
@@ -241,29 +265,58 @@ async function submitAll() {
             </button>
             <span class="phase-side" :class="{ on: !isPre }">Post</span>
           </div>
-          <span class="phase-hint">{{ phaseHint }}</span>
-        </label>
-        <label>
-          Equipment ID
-          <input v-model="subjectId" type="text" placeholder="e.g. 001" autocomplete="off" />
         </label>
         <label>
           Name
           <input v-model="subjectName" type="text" placeholder="e.g. Alex" autocomplete="off" />
         </label>
+        <label>
+          Equipment ID
+          <input v-model="subjectId" type="text" placeholder="e.g. 001" autocomplete="off" />
+        </label>
+        <template v-if="isPre">
+          <label>
+            Age
+            <input
+              v-model="subjectAge"
+              type="number"
+              min="1"
+              max="120"
+              placeholder="e.g. 22"
+              autocomplete="off"
+            />
+          </label>
+          <label>
+            Gender
+            <select v-model="subjectGender">
+              <option value="" disabled>Select…</option>
+              <option v-for="opt in GENDER_OPTIONS" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+          </label>
+          <label>
+            Major
+            <input
+              v-model="subjectMajor"
+              type="text"
+              placeholder="e.g. Psychology"
+              autocomplete="off"
+            />
+          </label>
+          <label>
+            Education
+            <input
+              v-model="subjectEducation"
+              type="text"
+              placeholder="e.g. Bachelor"
+              autocomplete="off"
+            />
+          </label>
+        </template>
       </div>
 
-      <div class="archive-block">
-        <template v-if="isPre">
-          <p class="submit-hint">Complete GAD-7 and mood items, then submit in the form</p>
-          <p v-if="saveStatus" class="save-msg" :class="saveStatus.ok ? 'ok' : 'err'">
-            {{ saveStatus.message }}
-          </p>
-        </template>
-        <template v-else>
-          <p v-if="!allSegmentsComplete" class="submit-hint">
-            Complete all {{ segments.length }} segments before submitting
-          </p>
+      <div v-if="!isPre || saveStatus" class="archive-block">
+        <label v-if="!isPre" class="progress-field">
+          Progress
           <button
             type="button"
             class="btn-submit-all"
@@ -272,7 +325,7 @@ async function submitAll() {
             @click="submitAll"
           >
             <span v-if="!allSegmentsComplete" class="button-progress">
-              <span>Progress {{ completedCount }} / {{ segments.length }}</span>
+              <span>{{ completedCount }} / {{ segments.length }}</span>
               <span class="button-dots" aria-hidden="true">
                 <i
                   v-for="seg in segments"
@@ -294,10 +347,14 @@ async function submitAll() {
             </span>
             <span v-else>{{ saving ? "Submitting…" : "Submit all segment surveys" }}</span>
           </button>
-          <p v-if="saveStatus" class="save-msg" :class="saveStatus.ok ? 'ok' : 'err'">
-            {{ saveStatus.message }}
-          </p>
-        </template>
+        </label>
+        <p
+          v-if="saveStatus"
+          class="save-msg"
+          :class="saveStatus.ok ? 'ok' : 'err'"
+        >
+          {{ saveStatus.message }}
+        </p>
       </div>
     </section>
 
@@ -390,9 +447,9 @@ async function submitAll() {
 
 .review-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1.05fr) minmax(420px, 1.6fr) minmax(220px, 1fr);
-  align-items: center;
-  gap: 18px 28px;
+  grid-template-columns: minmax(140px, 0.7fr) minmax(0, 1.6fr) minmax(220px, 0.9fr);
+  align-items: end;
+  gap: 12px 24px;
   padding: 14px 24px;
   box-sizing: border-box;
   width: 100%;
@@ -407,6 +464,8 @@ async function submitAll() {
   display: grid;
   gap: 3px;
   min-width: 0;
+  align-self: end;
+  padding-bottom: 2px;
 }
 
 .toolbar-kicker {
@@ -424,10 +483,19 @@ async function submitAll() {
 
 .toolbar-fields {
   display: grid;
-  grid-template-columns: minmax(150px, 0.95fr) minmax(120px, 1fr) minmax(120px, 1fr);
+  grid-template-columns: minmax(132px, 0.9fr) repeat(2, minmax(110px, 1fr));
   gap: 12px 14px;
-  align-items: start;
+  align-items: end;
   min-width: 0;
+}
+
+.toolbar-fields.is-pre {
+  grid-column: 2 / -1;
+  grid-template-columns: minmax(132px, 0.9fr) repeat(6, minmax(88px, 1fr));
+}
+
+.phase-pre .archive-block {
+  grid-column: 2 / -1;
 }
 
 .toolbar-fields label {
@@ -438,9 +506,11 @@ async function submitAll() {
   text-transform: uppercase;
   letter-spacing: 1px;
   font-weight: 700;
+  min-width: 0;
 }
 
-.toolbar-fields input {
+.toolbar-fields input,
+.toolbar-fields select {
   width: 100%;
   min-width: 0;
   height: 38px;
@@ -457,7 +527,19 @@ async function submitAll() {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.toolbar-fields input:focus {
+.toolbar-fields select {
+  cursor: pointer;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #a7b0bc 50%),
+    linear-gradient(135deg, #a7b0bc 50%, transparent 50%);
+  background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 10px) calc(50% - 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
+}
+
+.toolbar-fields input:focus,
+.toolbar-fields select:focus {
   border-color: rgba(34, 211, 238, 0.7);
   box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
 }
@@ -525,23 +607,24 @@ async function submitAll() {
   background: #67e8f9;
 }
 
-.phase-hint {
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--faint);
-  line-height: 1.3;
-}
-
 .archive-block {
   display: grid;
   gap: 5px;
   min-width: 0;
-  min-height: 58px;
   width: 100%;
   justify-self: stretch;
   align-content: end;
+}
+
+.progress-field {
+  display: grid;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  min-width: 0;
 }
 
 .button-progress {
@@ -781,16 +864,22 @@ async function submitAll() {
   overflow: hidden;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1280px) {
   .review-toolbar {
-    grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.4fr);
+    grid-template-columns: minmax(140px, 0.7fr) minmax(0, 1.6fr);
   }
 
-  .toolbar-fields {
+  .toolbar-fields,
+  .toolbar-fields.is-pre {
     grid-column: 2;
   }
 
-  .archive-block {
+  .toolbar-fields.is-pre {
+    grid-template-columns: minmax(120px, 0.85fr) repeat(3, minmax(0, 1fr));
+  }
+
+  .archive-block,
+  .phase-pre .archive-block {
     grid-column: 1 / -1;
     width: min(100%, 360px);
     justify-self: end;
@@ -816,12 +905,14 @@ async function submitAll() {
     grid-template-columns: 1fr;
   }
 
-  .toolbar-fields {
+  .toolbar-fields,
+  .toolbar-fields.is-pre {
     grid-column: auto;
     grid-template-columns: 1fr;
   }
 
-  .archive-block {
+  .archive-block,
+  .phase-pre .archive-block {
     grid-column: auto;
     width: 100%;
   }

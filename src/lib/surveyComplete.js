@@ -21,8 +21,12 @@ export function isInstrumentComplete(instrumentId, draft = {}) {
     case "gad7":
       return isGad7Complete(draft);
     case "pomsSf":
-    case "posttest":
       return isPoms30Complete(draft);
+    case "posttest":
+      return (
+        isPoms30Complete(draft) &&
+        String(draft.openFeeling || "").trim().length > 0
+      );
     case "pretest":
       return isGad7Complete(draft) && isPoms30Complete(draft);
     case "pss":
@@ -79,7 +83,13 @@ export function normalizeAnswers(instrumentId, draft = {}) {
       ...poms30AnswersFromDraft(draft)
     };
   }
-  if (instrumentId === "pomsSf" || instrumentId === "posttest") {
+  if (instrumentId === "posttest") {
+    return {
+      ...poms30AnswersFromDraft(draft),
+      openFeeling: String(draft.openFeeling || "").trim()
+    };
+  }
+  if (instrumentId === "pomsSf") {
     return poms30AnswersFromDraft(draft);
   }
   if (instrumentId === "gad7") {

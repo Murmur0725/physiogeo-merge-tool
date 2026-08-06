@@ -21,16 +21,31 @@ const answers = computed({
   set: (v) => emit("update:modelValue", v)
 });
 
+const openFeeling = computed({
+  get: () => answers.value.openFeeling || "",
+  set: (v) => {
+    answers.value = { ...answers.value, openFeeling: v };
+  }
+});
+
 function setItem(i, v) {
   answers.value = { ...answers.value, [`m${i}`]: v };
 }
 
-const complete = computed(() => isPoms30Complete(answers.value));
+const complete = computed(() => {
+  if (!isPoms30Complete(answers.value)) return false;
+  // Post-test (non-embed): require open-ended segment feeling.
+  if (!props.embed) return String(answers.value.openFeeling || "").trim().length > 0;
+  return true;
+});
 
 function submit() {
   if (!complete.value) return;
   emit("submit", {
-    answers: poms30AnswersFromDraft(answers.value),
+    answers: {
+      ...poms30AnswersFromDraft(answers.value),
+      openFeeling: String(answers.value.openFeeling || "").trim()
+    },
     scores: scorePoms30(answers.value)
   });
 }
@@ -58,6 +73,16 @@ function submit() {
           </label>
         </div>
       </li>
+      <li v-if="!embed" class="open-item">
+        <p>How did you feel while walking this segment of the route?</p>
+        <textarea
+          :id="`open-feeling-${segmentMeta?.id || 'seg'}`"
+          v-model="openFeeling"
+          rows="4"
+          placeholder="Describe your feelings about this segment…"
+          autocomplete="off"
+        />
+      </li>
     </ol>
     <button
       v-if="!embed"
@@ -84,5 +109,39 @@ function submit() {
 .survey-body.embed .items {
   flex: none;
   overflow: visible;
+}
+
+.open-item {
+  display: grid;
+  gap: 10px;
+}
+
+.open-item p {
+  margin: 0;
+}
+
+.open-item textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.34);
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.45;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.open-item textarea:focus {
+  border-color: rgba(34, 211, 238, 0.7);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+}
+
+.open-item textarea::placeholder {
+  color: var(--faint);
 }
 </style>

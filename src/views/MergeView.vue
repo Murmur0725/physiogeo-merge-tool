@@ -1,11 +1,18 @@
 <script setup>
 import { ref, reactive, computed } from "vue";
 import FileDrop from "../components/FileDrop.vue";
-import { runMergeWithBaseline, finalColumns, safeFilePart } from "../lib/merge";
+import {
+  runMergeWithBaseline,
+  finalColumns,
+  safeFilePart,
+  EEG_TIMEZONE_OPTIONS
+} from "../lib/merge";
 import { archiveSession, isArchiveConfigured } from "../lib/archive";
 
 const subjectId = ref("");
 const subjectName = ref("");
+/** EEG Date/日期 clock: chicago = as-is; beijing = convert Asia/Shanghai → America/Chicago */
+const eegTimezone = ref("chicago");
 
 const fileSpecs = [
   { key: "marks", label: "Mark CSV", accept: ".csv", color: "#22d3ee", hint: "Notes must include C/D (merge) and A/B (baseline)" },
@@ -61,9 +68,14 @@ async function generate() {
     const id = subjectId.value.trim();
     const name = subjectName.value.trim();
     log(`Equipment: ${id} ${name}`);
+    log(
+      `EEG timezone: ${EEG_TIMEZONE_OPTIONS[eegTimezone.value]?.label || eegTimezone.value}`
+    );
     log("Windows: C→D for site merge; A→B aligned in background. Archiving CD + AB + raw files.");
 
-    const { experiment, baseline } = await runMergeWithBaseline(files, log);
+    const { experiment, baseline } = await runMergeWithBaseline(files, log, {
+      eegTimezone: eegTimezone.value
+    });
 
     // Only CD experiment merge is held for website preview/download.
     rows.value = experiment.rows;
@@ -124,7 +136,13 @@ function download() {
           <span>Name</span>
           <input v-model="subjectName" type="text" placeholder="e.g. Alex" autocomplete="off" />
         </label>
-        <p class="hint">Download is CD experiment only: {id}{name}-merge.csv (no baseline).</p>
+        <label class="field">
+          <span>EEG timezone</span>
+          <select v-model="eegTimezone">
+            <option value="chicago">Chicago</option>
+            <option value="beijing">Beijing</option>
+          </select>
+        </label>
       </section>
 
       <section class="card">
@@ -145,7 +163,7 @@ function download() {
         <button class="btn btn-primary" :disabled="!canMerge || running" @click="generate">
           {{ running ? "Processing…" : "Generate Merge CSV" }}
         </button>
-        <button class="btn btn-ghost" :disabled="!csv" @click="download">Download CD Merge</button>
+        <button class="btn btn-ghost" :disabled="!csv" @click="download">Download Merge</button>
       </div>
       <p v-if="baselineStatus" class="hint gate-hint">{{ baselineStatus }}</p>
       <p v-if="!canMerge" class="hint gate-hint">Enter equipment ID and name, and upload all 5 files to generate.</p>
