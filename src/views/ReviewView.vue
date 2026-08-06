@@ -361,10 +361,6 @@ async function submitAll() {
     <!-- Pre-test: full-width questionnaire, no map -->
     <div v-if="isPre" class="pretest-body">
       <div class="pretest-pane">
-        <header class="pretest-head">
-          <p class="survey-kicker">Pre-test</p>
-          <h2>GAD-7 + mood adjectives</h2>
-        </header>
         <PretestSurvey
           v-model="pretestDraft"
           :submitting="saving"
@@ -745,28 +741,6 @@ async function submitAll() {
   flex-direction: column;
   gap: 12px;
   background: #0e131a;
-}
-
-.pretest-head {
-  flex: none;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--line);
-}
-
-.survey-kicker {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.pretest-head h2 {
-  margin: 4px 0 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--ink);
 }
 
 .pretest-pane :deep(.pretest) {

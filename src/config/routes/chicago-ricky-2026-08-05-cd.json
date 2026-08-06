@@ -85,7 +85,7 @@
       "id": "w5",
       "lng": -87.630714,
       "lat": 41.876966,
-      "label": "Corner 5",
+      "label": "Corner 5 · IMG_3097 split",
       "mark": null
     },
     {
@@ -102,12 +102,8 @@
       "segmentLabel": "Section 1"
     },
     {
-      "afterWaypointId": "w2",
+      "afterWaypointId": "w5",
       "segmentLabel": "Section 2"
-    },
-    {
-      "afterWaypointId": "w4",
-      "segmentLabel": "Section 3"
     }
   ],
   "segmentSamples": {
@@ -221,9 +217,7 @@
         "compassAngle": 181.3,
         "imageDistanceMeters": 6.7,
         "routeDistanceMeters": 1.8
-      }
-    ],
-    "Section 2": [
+      },
       {
         "id": "photo-img_3092",
         "lng": -87.6322389,
@@ -245,9 +239,7 @@
         "compassAngle": 82.8,
         "imageDistanceMeters": 3.6,
         "routeDistanceMeters": 1.4
-      }
-    ],
-    "Section 3": [
+      },
       {
         "id": "photo-img_3094",
         "lng": -87.630775,
@@ -280,7 +272,9 @@
         "compassAngle": 122.1,
         "imageDistanceMeters": 1.3,
         "routeDistanceMeters": 1.2
-      },
+      }
+    ],
+    "Section 2": [
       {
         "id": "photo-img_3099",
         "lng": -87.6298222,

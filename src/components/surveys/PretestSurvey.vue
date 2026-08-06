@@ -47,7 +47,6 @@ function submit() {
   <div class="pretest">
     <div class="pretest-scroll" role="region" aria-label="Pre-test questionnaire">
       <section class="block">
-        <h3>GAD-7</h3>
         <Gad7Survey
           embed
           :segment-meta="{ id: 'pretest' }"
@@ -56,10 +55,9 @@ function submit() {
         />
       </section>
       <section class="block">
-        <h3>Mood adjectives (POMS-30)</h3>
         <PomsSfSurvey
           embed
-          :segment-meta="{ id: 'pretest', label: 'Pre-test' }"
+          :segment-meta="{ id: 'pretest' }"
           :model-value="answers"
           @update:model-value="answers = $event"
         />
@@ -99,14 +97,6 @@ function submit() {
 .block {
   flex: none;
   width: 100%;
-}
-
-.block h3 {
-  margin: 0 0 10px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  color: var(--ink);
 }
 
 .pretest > .btn {
