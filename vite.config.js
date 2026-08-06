@@ -15,8 +15,8 @@ function spaFallback404() {
   };
 }
 
-// Project is served at https://murmur0725.github.io/physiogeo-merge-tool/
+// Project is served at https://murmur0725.github.io/physiogeo/
 export default defineConfig({
   plugins: [vue(), spaFallback404()],
-  base: "/physiogeo-merge-tool/"
+  base: "/physiogeo/"
 });
