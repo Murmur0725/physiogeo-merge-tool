@@ -15,11 +15,11 @@ const subjectName = ref("");
 const eegTimezone = ref("chicago");
 
 const fileSpecs = [
-  { key: "marks", label: "Mark CSV", accept: ".csv", color: "#22d3ee", hint: "Notes must include C/D (merge) and A/B (baseline)" },
-  { key: "rr", label: "RR CSV", accept: ".csv", color: "#4ade80", hint: "timestamp + rr_ms" },
-  { key: "eeg", label: "EEG Excel", accept: ".xlsx,.xls", color: "#a78bfa", hint: "Date, duration, Time-set, EEG rows" },
-  { key: "gpx", label: "GPS GPX", accept: ".gpx,.xml", color: "#facc15", hint: "trkpt lat/lon + time" },
-  { key: "hr", label: "Heart Rate CSV", accept: ".csv,.CSV", color: "#f87171", hint: "Date, Start time, Time, HR (bpm)" }
+  { key: "marks", label: "Mark CSV", accept: ".csv", color: "#22d3ee", hint: "Required · C/D (or 开始/结束); A/B optional for baseline" },
+  { key: "rr", label: "RR CSV", accept: ".csv", color: "#4ade80", hint: "Optional · timestamp + rr_ms" },
+  { key: "eeg", label: "EEG Excel", accept: ".xlsx,.xls", color: "#a78bfa", hint: "Optional · Date, duration, Time-set, EEG rows" },
+  { key: "gpx", label: "GPS GPX", accept: ".gpx,.xml", color: "#facc15", hint: "Optional · trkpt lat/lon + time" },
+  { key: "hr", label: "Heart Rate CSV", accept: ".csv,.CSV", color: "#f87171", hint: "Optional · Date, Start time, Time, HR (bpm)" }
 ];
 
 const files = reactive({ marks: null, rr: null, eeg: null, gpx: null, hr: null });
@@ -28,7 +28,7 @@ const running = ref(false);
 const rows = ref([]);
 const csv = ref("");
 const logs = ref([
-  "Ready. Enter equipment ID and name, upload all 5 files, then generate. The site downloads CD merge only; CD/AB/raw files are archived privately."
+  "Ready. Enter equipment ID and name, upload Mark CSV (start/end timestamps required). RR / EEG / GPX / HR are optional — missing streams stay blank."
 ]);
 const metrics = reactive({ rows: "--", gps: "--", rr: "--", eeg: "--", hr: "--" });
 const rangeText = ref("");
@@ -40,7 +40,7 @@ const canMerge = computed(
   () =>
     subjectId.value.trim() !== "" &&
     subjectName.value.trim() !== "" &&
-    Object.values(files).every(Boolean)
+    Boolean(files.marks)
 );
 
 const previewRows = computed(() => rows.value.slice(0, PREVIEW_LIMIT));
@@ -71,7 +71,7 @@ async function generate() {
     log(
       `Route timezone: ${EEG_TIMEZONE_OPTIONS[eegTimezone.value]?.label || eegTimezone.value}`
     );
-    log("Windows: C→D for site merge; A→B aligned in background. Archiving CD + AB + raw files.");
+    log("Windows: C→D for site merge; A→B if present. Optional sensors fill when available.");
 
     const { experiment, baseline } = await runMergeWithBaseline(files, log, {
       eegTimezone: eegTimezone.value
@@ -83,7 +83,7 @@ async function generate() {
     Object.assign(metrics, experiment.metrics);
     rangeText.value = `CD ${experiment.range}`;
 
-    log("Archiving CD merge + AB baseline + raw files to private DB…");
+    log("Archiving available CD / AB / raw files to private DB…");
     const archived = await archiveSession({
       subjectId: id,
       subjectName: name,
@@ -155,7 +155,7 @@ function download() {
           @select="(f) => (files[spec.key] = f)"
         />
         <p class="hint">
-          Parsing runs in the browser. Only CD is downloadable here; CD merge, AB baseline, and all 5 raw files are archived privately.
+          Only Mark start/end timestamps are required. Missing RR / EEG / GPX / HR leave blank columns. CD download stays local; available files archive privately.
         </p>
       </section>
 
@@ -166,7 +166,7 @@ function download() {
         <button class="btn btn-ghost" :disabled="!csv" @click="download">Download Merge</button>
       </div>
       <p v-if="baselineStatus" class="hint gate-hint">{{ baselineStatus }}</p>
-      <p v-if="!canMerge" class="hint gate-hint">Enter equipment ID and name, and upload all 5 files to generate.</p>
+      <p v-if="!canMerge" class="hint gate-hint">Enter equipment ID and name, and upload Mark CSV (with C/D or 开始/结束).</p>
     </aside>
 
     <main class="main">

@@ -479,11 +479,55 @@ function assembleRows(timeline, { rr, eeg, gpx, heartRate, marks }) {
 }
 
 /**
+ * Load an optional sensor file. Missing or unreadable files become empty maps/arrays;
+ * merge continues with blank columns for that stream.
+ */
+async function loadOptionalSensor(label, file, emptyValue, loader, log) {
+  if (!file) {
+    log(`${label} skipped (not uploaded)`);
+    return emptyValue;
+  }
+  try {
+    const value = await loader(file);
+    log(`${label} loaded`);
+    return value;
+  } catch (error) {
+    log(`${label} skipped: ${error.message}`);
+    return emptyValue;
+  }
+}
+
+async function loadSensors(files, log, options = {}) {
+  const eegTimezone = options.eegTimezone || "chicago";
+  const rr = await loadOptionalSensor("RR", files.rr, new Map(), loadRR, log);
+  const eeg = await loadOptionalSensor(
+    "EEG",
+    files.eeg,
+    new Map(),
+    (file) =>
+      loadEEG(file, {
+        eegTimezone,
+        onTimezoneConvert: ({ before, after }) => {
+          log(`EEG Date: ${before} (Beijing) → ${after} (Chicago)`);
+        }
+      }),
+    log
+  );
+  const gpx = await loadOptionalSensor("GPX", files.gpx, [], loadGPX, log);
+  const heartRate = await loadOptionalSensor("Heart Rate", files.hr, new Map(), loadHeartRate, log);
+  return { rr, eeg, gpx, heartRate };
+}
+
+/**
  * Run the merge pipeline for one window.
+ * Only Mark (start/end timestamps) is required; RR/EEG/GPX/HR may be absent.
  * @param {"cd"|"ab"} [options.window="cd"] — CD = website merge; AB = baseline (archive only)
  * @param {"chicago"|"beijing"} [options.eegTimezone="chicago"] — EEG Date/日期 clock
  */
 export async function runMerge(files, log = () => {}, options = {}) {
+  if (!files?.marks) {
+    throw new Error("Mark CSV is required (needs start/end timestamps: C/D or 开始/结束).");
+  }
   const windowKey = options.window || "cd";
   log("Reading Mark file...");
   const allMarks = await loadAllMarks(files.marks);
@@ -491,30 +535,20 @@ export async function runMerge(files, log = () => {}, options = {}) {
   const rows = buildTimeline(marks.start, marks.end);
   log(`${marks.label}: ${marks.start} → ${marks.end} (${rows.length} seconds)`);
 
-  log("Reading RR file...");
-  const rr = await loadRR(files.rr);
-  log("Reading EEG file...");
-  const eeg = await loadEEG(files.eeg, {
-    eegTimezone: options.eegTimezone || "chicago",
-    onTimezoneConvert: ({ before, after }) => {
-      log(`EEG Date: ${before} (Beijing) → ${after} (Chicago)`);
-    }
-  });
-  log("Reading GPX file...");
-  const gpx = await loadGPX(files.gpx);
-  log("Reading Heart Rate file...");
-  const heartRate = await loadHeartRate(files.hr);
-
-  return assembleRows(rows, { rr, eeg, gpx, heartRate, marks });
+  const sensors = await loadSensors(files, log, options);
+  return assembleRows(rows, { ...sensors, marks });
 }
 
 /**
  * Generate experiment (CD) merge for download and baseline (AB) merge for archive.
  * Baseline is never exposed as a website download — callers must archive it server-side.
+ * Only Mark is required; missing sensor files leave blank columns.
  * @param {"chicago"|"beijing"} [options.eegTimezone="chicago"]
  */
 export async function runMergeWithBaseline(files, log = () => {}, options = {}) {
-  const eegTimezone = options.eegTimezone || "chicago";
+  if (!files?.marks) {
+    throw new Error("Mark CSV is required (needs start/end timestamps: C/D or 开始/结束).");
+  }
   log("Reading Mark file...");
   const allMarks = await loadAllMarks(files.marks);
   const experimentMarks = resolveWindow(allMarks, "cd");
@@ -531,17 +565,8 @@ export async function runMergeWithBaseline(files, log = () => {}, options = {}) 
     log(`Baseline AB skipped: ${error.message}`);
   }
 
-  log("Reading RR / EEG / GPX / HR once for both windows...");
-  const rr = await loadRR(files.rr);
-  const eeg = await loadEEG(files.eeg, {
-    eegTimezone,
-    onTimezoneConvert: ({ before, after }) => {
-      log(`EEG Date: ${before} (Beijing) → ${after} (Chicago)`);
-    }
-  });
-  const gpx = await loadGPX(files.gpx);
-  const heartRate = await loadHeartRate(files.hr);
-  const sensors = { rr, eeg, gpx, heartRate };
+  log("Reading optional RR / EEG / GPX / HR (missing streams stay blank)…");
+  const sensors = await loadSensors(files, log, options);
 
   const experiment = assembleRows(experimentTimeline, { ...sensors, marks: experimentMarks });
   const baseline = baselineMarks
