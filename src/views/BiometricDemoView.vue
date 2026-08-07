@@ -82,8 +82,17 @@ const R = 6378137;
 const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN || "";
 
 const mapEl = ref(null);
+const fileInputEl = ref(null);
 const currentMetric = ref("heart_rate");
 const loadError = ref("");
+const dataSource = reactive({
+  kind: "sample", // sample | upload
+  label: "Sample demo data",
+  pointCount: 0
+});
+const dataPanelOpen = ref(false);
+const dataStatus = ref("");
+
 const legend = reactive({
   title: "Heart Rate (bpm)",
   min: "--",
@@ -117,6 +126,315 @@ let pillarData = null;
 let selectedFeatureId = null;
 let selectedFeature = null;
 let growTimer = null;
+let layersReady = false;
+const MAX_UPLOAD_POINTS = 400;
+
+function parseCsvText(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let quoted = false;
+  const input = String(text || "").replace(/^\uFEFF/, "");
+  for (let i = 0; i < input.length; i += 1) {
+    const ch = input[i];
+    const next = input[i + 1];
+    if (quoted) {
+      if (ch === '"' && next === '"') {
+        cell += '"';
+        i += 1;
+      } else if (ch === '"') {
+        quoted = false;
+      } else {
+        cell += ch;
+      }
+    } else if (ch === '"') {
+      quoted = true;
+    } else if (ch === ",") {
+      row.push(cell);
+      cell = "";
+    } else if (ch === "\n") {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else if (ch !== "\r") {
+      cell += ch;
+    }
+  }
+  if (cell.length || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows.filter((items) => items.some((item) => String(item).trim() !== ""));
+}
+
+function parseLocation(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const parts = text.split(/[,;\s]+/).map((p) => Number(p)).filter((n) => Number.isFinite(n));
+  if (parts.length < 2) return null;
+  // merge CSV stores "lat,lon"
+  const [a, b] = parts;
+  // Heuristic: longitude typically has larger abs in US/China ranges when swapped wrongly —
+  // prefer lat,lon if |a|<=90 and |b|<=180.
+  if (Math.abs(a) <= 90 && Math.abs(b) <= 180) return { lat: a, lng: b };
+  if (Math.abs(b) <= 90 && Math.abs(a) <= 180) return { lat: b, lng: a };
+  return { lat: a, lng: b };
+}
+
+function downsampleFeatures(features, maxCount) {
+  if (features.length <= maxCount) return features;
+  const out = [];
+  const step = (features.length - 1) / (maxCount - 1);
+  for (let i = 0; i < maxCount; i += 1) {
+    out.push(features[Math.round(i * step)]);
+  }
+  return out;
+}
+
+function pointsFromCsvText(text) {
+  const rows = parseCsvText(text);
+  if (rows.length < 2) throw new Error("CSV has no data rows.");
+  const headers = rows[0].map((h) => String(h).trim());
+  const objects = rows.slice(1).map((row) => {
+    const out = {};
+    headers.forEach((h, i) => {
+      out[h] = row[i] ?? "";
+    });
+    return out;
+  });
+
+  const features = [];
+  for (const row of objects) {
+    let lat = Number(row.lat ?? row.latitude ?? row.Lat);
+    let lng = Number(row.lng ?? row.lon ?? row.longitude ?? row.Lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      const loc = parseLocation(row.location || row.Location || row.coord || row.coordinates);
+      if (!loc) continue;
+      lat = loc.lat;
+      lng = loc.lng;
+    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+    const props = { ...row };
+    // Normalize merge-CSV field names to demo property names.
+    if (props.time && !props.timestamp) props.timestamp = props.time;
+    if (props.Mark != null && props.Mark !== "" && !props.event_mark) {
+      props.event_mark = String(props.Mark);
+    }
+    // Combined EEG bands if only sub-bands exist
+    const num = (k) => {
+      const v = Number(props[k]);
+      return Number.isFinite(v) ? v : null;
+    };
+    // Coerce metric columns to numbers (CSV cells are always strings).
+    for (const key of Object.keys(METRICS)) {
+      const n = num(key);
+      if (n != null) props[key] = n;
+    }
+    if ((props.heart_rate == null || props.heart_rate === "") && props.hr != null && props.hr !== "") {
+      const n = Number(props.hr);
+      if (Number.isFinite(n)) props.heart_rate = n;
+    }
+    if (props.alpha == null || props.alpha === "") {
+      const la = num("low_alpha");
+      const ha = num("high_alpha");
+      if (la != null || ha != null) props.alpha = (la || 0) + (ha || 0);
+    }
+    if (props.beta == null || props.beta === "") {
+      const lb = num("low_beta");
+      const hb = num("high_beta");
+      if (lb != null || hb != null) props.beta = (lb || 0) + (hb || 0);
+    }
+    if (props.gamma == null || props.gamma === "") {
+      const lg = num("low_gamma");
+      const mg = num("mid_gamma");
+      if (lg != null || mg != null) props.gamma = (lg || 0) + (mg || 0);
+    }
+
+    features.push({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [lng, lat] },
+      properties: props
+    });
+  }
+
+  if (!features.length) {
+    throw new Error("No rows with valid location found in CSV.");
+  }
+
+  const sampled = downsampleFeatures(features, MAX_UPLOAD_POINTS);
+  return {
+    type: "FeatureCollection",
+    features: sampled,
+    meta: { rawCount: features.length, usedCount: sampled.length }
+  };
+}
+
+function clearSelection() {
+  if (map && selectedFeatureId !== null) {
+    try {
+      map.setFeatureState({ source: "pillars", id: selectedFeatureId }, { selected: false });
+    } catch {
+      /* source may be gone */
+    }
+  }
+  selectedFeatureId = null;
+  selectedFeature = null;
+  panel.hasSelection = false;
+  panel.title = "No pillar selected";
+  panel.value = "--";
+  panel.event = "No recorded event at this point.";
+  panel.time = "--";
+  panel.coord = "--";
+  panel.imageUrl = "";
+  panel.imageVisible = false;
+  panel.imageEmpty = false;
+  panel.spectrogramUrl = "";
+  panel.spectrogramVisible = false;
+  panel.spectrogramEmpty = false;
+  panel.audioUrl = "";
+  panel.audioVisible = false;
+}
+
+function fitMapToPillars() {
+  if (!map || !pillarData?.features?.length) return;
+  const bounds = new mapboxgl.LngLatBounds();
+  pillarData.features.forEach((f) => {
+    const lng = Number(f.properties?.lng);
+    const lat = Number(f.properties?.lat);
+    if (Number.isFinite(lng) && Number.isFinite(lat)) bounds.extend([lng, lat]);
+  });
+  if (!bounds.isEmpty()) {
+    map.fitBounds(bounds, { padding: 80, maxZoom: 17, duration: 900, pitch: 55 });
+  }
+}
+
+function startGrowAnimation() {
+  if (growTimer) {
+    clearInterval(growTimer);
+    growTimer = null;
+  }
+  if (!map || !pillarData) return;
+
+  for (const feature of pillarData.features) {
+    map.setFeatureState(
+      { source: "pillars", id: feature.properties.seq },
+      { visible: false, selected: false }
+    );
+  }
+
+  let index = 0;
+  growTimer = setInterval(() => {
+    if (!map || !pillarData) {
+      clearInterval(growTimer);
+      growTimer = null;
+      return;
+    }
+    const end = Math.min(index + BATCH_SIZE, pillarData.features.length);
+    for (let i = index; i < end; i++) {
+      const feature = pillarData.features[i];
+      map.setFeatureState({ source: "pillars", id: feature.properties.seq }, { visible: true });
+    }
+    index = end;
+    if (index >= pillarData.features.length) {
+      clearInterval(growTimer);
+      growTimer = null;
+    }
+  }, STEP_DELAY);
+}
+
+function applyPointsDataset(pointsGeoJSON, sourceInfo = {}) {
+  if (!map) throw new Error("Map is not ready.");
+  clearSelection();
+  pillarData = buildPillarsFromPoints(pointsGeoJSON, pillarRadiusMeters);
+  if (!pillarData.features.length) {
+    throw new Error("Dataset produced no map pillars.");
+  }
+
+  dataSource.kind = sourceInfo.kind || "upload";
+  dataSource.label = sourceInfo.label || "Uploaded data";
+  dataSource.pointCount = pillarData.features.length;
+
+  const range = getRobustRange(currentMetric.value);
+  const color = buildColorExpression(currentMetric.value, range.min, range.max);
+  const height = buildHeightExpression(currentMetric.value, range.min, range.max);
+  updateLegend(currentMetric.value, range);
+
+  if (map.getSource("pillars")) {
+    map.getSource("pillars").setData(pillarData);
+    map.setPaintProperty("pillar-base", "fill-color", color);
+    map.setPaintProperty("pillar-extrusion", "fill-extrusion-color", color);
+    map.setPaintProperty("pillar-extrusion", "fill-extrusion-height", height);
+  } else {
+    map.addSource("pillars", {
+      type: "geojson",
+      data: pillarData,
+      promoteId: "seq"
+    });
+
+    map.addLayer({
+      id: "pillar-base",
+      type: "fill",
+      source: "pillars",
+      paint: {
+        "fill-color": color,
+        "fill-opacity": [
+          "case",
+          ["boolean", ["feature-state", "selected"], false],
+          0.42,
+          0.18
+        ]
+      }
+    });
+
+    map.addLayer({
+      id: "pillar-extrusion",
+      type: "fill-extrusion",
+      source: "pillars",
+      paint: {
+        "fill-extrusion-color": color,
+        "fill-extrusion-height": height,
+        "fill-extrusion-base": 0,
+        "fill-extrusion-opacity": extrusionOpacity,
+        "fill-extrusion-height-transition": {
+          duration: GROW_DURATION,
+          delay: 0
+        },
+        "fill-extrusion-color-transition": {
+          duration: 240,
+          delay: 0
+        }
+      }
+    });
+
+    map.on("mousemove", "pillar-extrusion", (event) => {
+      map.getCanvas().style.cursor = event.features && event.features.length ? "pointer" : "";
+    });
+    map.on("mouseleave", "pillar-extrusion", () => {
+      map.getCanvas().style.cursor = "";
+    });
+    map.on("click", "pillar-extrusion", (event) => {
+      const feature = event.features && event.features[0];
+      if (!feature) return;
+      selectedFeature = feature;
+      highlightSelectedPillar(feature.id);
+      updateInfoPanel(feature);
+    });
+  }
+
+  layersReady = true;
+  fitMapToPillars();
+  // After setData, wait until the source is in the render tree so feature-state sticks.
+  let grew = false;
+  const kickGrow = () => {
+    if (grew) return;
+    grew = true;
+    startGrowAnimation();
+  };
+  map.once("idle", kickGrow);
+  setTimeout(kickGrow, 400);
+}
 
 function resolveAssetUrl(path) {
   if (!path) return "";
@@ -181,12 +499,25 @@ function circlePolygon(lngLat, radiusMeters = 8, steps = 24) {
 function buildPillarsFromPoints(pointsGeoJSON, radiusMeters) {
   const out = [];
   const feats = pointsGeoJSON && pointsGeoJSON.features ? pointsGeoJSON.features : [];
+  const metricKeys = Object.keys(METRICS);
 
   for (let i = 0; i < feats.length; i++) {
     const f = feats[i];
     if (!f || !f.geometry || f.geometry.type !== "Point") continue;
 
     const coords = circlePolygon(f.geometry.coordinates, radiusMeters, 24);
+    const raw = { ...(f.properties || {}) };
+    // Mapbox interpolate requires numeric properties (CSV uploads are strings).
+    for (const key of metricKeys) {
+      if (raw[key] === undefined || raw[key] === null || raw[key] === "") continue;
+      const n = Number(raw[key]);
+      if (Number.isFinite(n)) raw[key] = n;
+    }
+    if (raw.hr !== undefined && raw.hr !== "" && raw.heart_rate == null) {
+      const n = Number(raw.hr);
+      if (Number.isFinite(n)) raw.heart_rate = n;
+    }
+
     out.push({
       type: "Feature",
       id: i,
@@ -194,7 +525,7 @@ function buildPillarsFromPoints(pointsGeoJSON, radiusMeters) {
         seq: i,
         lng: f.geometry.coordinates[0],
         lat: f.geometry.coordinates[1],
-        ...(f.properties || {})
+        ...raw
       },
       geometry: {
         type: "Polygon",
@@ -257,7 +588,7 @@ function buildColorExpression(metricKey, minValue, maxValue) {
   const colorExpression = [
     "interpolate",
     ["linear"],
-    ["get", metricKey],
+    ["to-number", ["get", metricKey]],
     ...rainbowStops.flatMap(([t, color]) => [minValue + (maxValue - minValue) * t, color])
   ];
 
@@ -273,7 +604,7 @@ function buildHeightExpression(metricKey, minValue, maxValue) {
   const targetHeight = [
     "interpolate",
     ["linear"],
-    ["get", metricKey],
+    ["to-number", ["get", metricKey]],
     minValue,
     MIN_HEIGHT,
     maxValue,
@@ -420,77 +751,11 @@ async function loadAndRender() {
   }
 
   const points = await resp.json();
-  pillarData = buildPillarsFromPoints(points, pillarRadiusMeters);
-  const initialRange = getRobustRange(currentMetric.value);
-  const initialColor = buildColorExpression(
-    currentMetric.value,
-    initialRange.min,
-    initialRange.max
-  );
-  const initialHeight = buildHeightExpression(
-    currentMetric.value,
-    initialRange.min,
-    initialRange.max
-  );
-
-  updateLegend(currentMetric.value, initialRange);
-
-  map.addSource("pillars", {
-    type: "geojson",
-    data: pillarData,
-    promoteId: "seq"
+  applyPointsDataset(points, {
+    kind: "sample",
+    label: "Sample demo data"
   });
-
-  map.addLayer({
-    id: "pillar-base",
-    type: "fill",
-    source: "pillars",
-    paint: {
-      "fill-color": initialColor,
-      "fill-opacity": [
-        "case",
-        ["boolean", ["feature-state", "selected"], false],
-        0.42,
-        0.18
-      ]
-    }
-  });
-
-  map.addLayer({
-    id: "pillar-extrusion",
-    type: "fill-extrusion",
-    source: "pillars",
-    paint: {
-      "fill-extrusion-color": initialColor,
-      "fill-extrusion-height": initialHeight,
-      "fill-extrusion-base": 0,
-      "fill-extrusion-opacity": extrusionOpacity,
-      "fill-extrusion-height-transition": {
-        duration: GROW_DURATION,
-        delay: 0
-      },
-      "fill-extrusion-color-transition": {
-        duration: 240,
-        delay: 0
-      }
-    }
-  });
-
-  map.on("mousemove", "pillar-extrusion", (event) => {
-    map.getCanvas().style.cursor = event.features && event.features.length ? "pointer" : "";
-  });
-
-  map.on("mouseleave", "pillar-extrusion", () => {
-    map.getCanvas().style.cursor = "";
-  });
-
-  map.on("click", "pillar-extrusion", (event) => {
-    const feature = event.features && event.features[0];
-    if (!feature) return;
-    selectedFeature = feature;
-    highlightSelectedPillar(feature.id);
-    updateInfoPanel(feature);
-  });
+  dataStatus.value = `${pillarData.features.length} sample points loaded`;
 
   const layers = map.getStyle().layers || [];
   let labelLayerId = null;
@@ -519,32 +784,66 @@ async function loadAndRender() {
       labelLayerId
     );
   }
+}
 
-  for (const feature of pillarData.features) {
-    map.setFeatureState(
-      { source: "pillars", id: feature.properties.seq },
-      { visible: false, selected: false }
-    );
+async function reloadSampleData() {
+  loadError.value = "";
+  dataStatus.value = "Loading sample data…";
+  try {
+    const resp = await fetch(GEOJSON_URL);
+    if (!resp.ok) throw new Error(`Failed to reload sample (${resp.status})`);
+    const points = await resp.json();
+    applyPointsDataset(points, { kind: "sample", label: "Sample demo data" });
+    dataStatus.value = `Restored sample · ${pillarData.features.length} points`;
+  } catch (error) {
+    loadError.value = error.message || String(error);
+    dataStatus.value = "Failed to restore sample";
   }
+}
 
-  let index = 0;
-  growTimer = setInterval(() => {
-    if (!map || !pillarData) {
-      clearInterval(growTimer);
-      growTimer = null;
-      return;
+function openFilePicker() {
+  fileInputEl.value?.click();
+}
+
+async function onDataFileChange(event) {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = "";
+  if (!file) return;
+
+  loadError.value = "";
+  dataStatus.value = `Reading ${file.name}…`;
+  try {
+    const text = await file.text();
+    const lower = file.name.toLowerCase();
+    let points;
+    let note = "";
+
+    if (lower.endsWith(".geojson") || lower.endsWith(".json")) {
+      const parsed = JSON.parse(text);
+      if (!parsed?.features?.length) throw new Error("GeoJSON has no features.");
+      points = parsed;
+      note = `${parsed.features.length} features`;
+    } else if (lower.endsWith(".csv")) {
+      const parsed = pointsFromCsvText(text);
+      points = { type: "FeatureCollection", features: parsed.features };
+      note =
+        parsed.meta.rawCount > parsed.meta.usedCount
+          ? `${parsed.meta.usedCount} of ${parsed.meta.rawCount} rows (downsampled)`
+          : `${parsed.meta.usedCount} rows`;
+    } else {
+      throw new Error("Please upload a .csv or .geojson file.");
     }
-    const end = Math.min(index + BATCH_SIZE, pillarData.features.length);
-    for (let i = index; i < end; i++) {
-      const feature = pillarData.features[i];
-      map.setFeatureState({ source: "pillars", id: feature.properties.seq }, { visible: true });
-    }
-    index = end;
-    if (index >= pillarData.features.length) {
-      clearInterval(growTimer);
-      growTimer = null;
-    }
-  }, STEP_DELAY);
+
+    applyPointsDataset(points, {
+      kind: "upload",
+      label: file.name
+    });
+    dataStatus.value = `Loaded ${file.name} · ${note}`;
+    dataPanelOpen.value = true;
+  } catch (error) {
+    loadError.value = error.message || String(error);
+    dataStatus.value = "Upload failed";
+  }
 }
 
 function initMap() {
@@ -606,6 +905,43 @@ onUnmounted(() => {
       <div ref="mapEl" class="map" />
 
       <div v-if="loadError" class="load-error">{{ loadError }}</div>
+
+      <div class="data-panel" :class="{ open: dataPanelOpen }">
+        <button
+          type="button"
+          class="data-panel-toggle"
+          @click="dataPanelOpen = !dataPanelOpen"
+        >
+          Data
+          <span class="data-panel-chevron">{{ dataPanelOpen ? "▾" : "▸" }}</span>
+        </button>
+        <div v-show="dataPanelOpen" class="data-panel-body">
+          <div class="data-source-row">
+            <span class="data-kicker">Current</span>
+            <strong>{{ dataSource.label }}</strong>
+            <span class="data-count">{{ dataSource.pointCount || "—" }} pts</span>
+          </div>
+          <div class="data-actions">
+            <button type="button" class="data-btn" @click="openFilePicker">Load CSV / GeoJSON</button>
+            <button
+              type="button"
+              class="data-btn ghost"
+              :disabled="dataSource.kind === 'sample'"
+              @click="reloadSampleData"
+            >
+              Use sample
+            </button>
+          </div>
+          <p v-if="dataStatus" class="data-status">{{ dataStatus }}</p>
+          <input
+            ref="fileInputEl"
+            class="data-file-input"
+            type="file"
+            accept=".csv,.geojson,.json,text/csv,application/geo+json,application/json"
+            @change="onDataFileChange"
+          />
+        </div>
+      </div>
 
       <div class="legend">
         <div class="metric-control">
@@ -742,6 +1078,119 @@ onUnmounted(() => {
   left: 25px;
   z-index: 2;
   pointer-events: none;
+}
+
+.data-panel {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  width: min(280px, calc(100vw - 32px));
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(12, 16, 24, 0.88);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.data-panel-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: #f3f6fb;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+}
+
+.data-panel-chevron {
+  color: rgba(243, 246, 251, 0.55);
+  font-size: 11px;
+}
+
+.data-panel-body {
+  padding: 0 10px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.data-source-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 6px;
+  align-items: baseline;
+  margin-top: 8px;
+}
+
+.data-kicker {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(167, 176, 188, 0.9);
+}
+
+.data-source-row strong {
+  font-size: 11px;
+  color: #edf3f8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-count {
+  font-size: 10px;
+  color: rgba(167, 176, 188, 0.95);
+  font-variant-numeric: tabular-nums;
+}
+
+.data-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.data-btn {
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(46, 134, 255, 0.9);
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.data-btn.ghost {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  color: #edf3f8;
+}
+
+.data-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.data-status {
+  margin: 8px 0 0;
+  font-size: 10px;
+  color: rgba(167, 176, 188, 0.95);
+}
+
+.data-file-input {
+  display: none;
 }
 
 .demo-title h1 {
