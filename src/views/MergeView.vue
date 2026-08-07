@@ -16,11 +16,15 @@ const eegTimezone = ref("chicago");
 
 /** marks = C/D from Mark CSV; manual = typed start/end timestamps */
 const windowMode = ref("marks");
+/** Manual CD = experiment cut window */
 const manualStart = ref("");
 const manualEnd = ref("");
+/** Manual AB = baseline cut window (optional) */
+const manualBaselineStart = ref("");
+const manualBaselineEnd = ref("");
 
 const fileSpecs = [
-  { key: "marks", label: "Mark CSV", accept: ".csv", color: "#22d3ee", hint: "C/D (or 开始/结束); A/B optional for baseline" },
+  { key: "marks", label: "Mark CSV", accept: ".csv", color: "#22d3ee", hint: "C/D = experiment; A/B = baseline" },
   { key: "rr", label: "RR CSV", accept: ".csv", color: "#4ade80", hint: "Optional · timestamp + rr_ms" },
   { key: "eeg", label: "EEG Excel", accept: ".xlsx,.xls", color: "#a78bfa", hint: "Optional · Date, duration, Time-set, EEG rows" },
   { key: "gpx", label: "GPS GPX", accept: ".gpx,.xml", color: "#facc15", hint: "Optional · trkpt lat/lon + time" },
@@ -33,7 +37,7 @@ const running = ref(false);
 const rows = ref([]);
 const csv = ref("");
 const logs = ref([
-  "Ready. Choose Mark CSV or Manual time for the cut window. RR / EEG / GPX / HR are optional."
+  "Ready. Choose Mark CSV or Manual time. CD = experiment download; AB = baseline archive. Sensors optional."
 ]);
 const metrics = reactive({ rows: "--", gps: "--", rr: "--", eeg: "--", hr: "--" });
 const rangeText = ref("");
@@ -45,7 +49,7 @@ const visibleFileSpecs = computed(() => {
   if (windowMode.value === "manual") {
     return fileSpecs.map((spec) =>
       spec.key === "marks"
-        ? { ...spec, hint: "Optional · event notes inside the manual window; A/B still enables baseline" }
+        ? { ...spec, hint: "Optional · event notes inside the manual windows" }
         : spec
     );
   }
@@ -67,9 +71,9 @@ const gateHint = computed(() => {
     return "Enter equipment ID and name.";
   }
   if (windowMode.value === "manual") {
-    return "Enter start and end timestamps to cut the merge window.";
+    return "Enter C (start) and D (end) for the experiment window. A/B baseline is optional.";
   }
-  return "Upload Mark CSV (with C/D or 开始/结束).";
+  return "Upload Mark CSV (C/D experiment; A/B baseline).";
 });
 
 const previewRows = computed(() => rows.value.slice(0, PREVIEW_LIMIT));
@@ -114,9 +118,21 @@ async function generate() {
         start: manualStart.value.trim(),
         end: manualEnd.value.trim()
       };
-      log(`Window mode: Manual time (${mergeOptions.manualWindow.start} → ${mergeOptions.manualWindow.end})`);
+      const a = manualBaselineStart.value.trim();
+      const b = manualBaselineEnd.value.trim();
+      if (a || b) {
+        mergeOptions.manualBaselineWindow = { start: a, end: b };
+      }
+      log(
+        `Window mode: Manual · CD experiment ${mergeOptions.manualWindow.start} → ${mergeOptions.manualWindow.end}`
+      );
+      if (a && b) {
+        log(`Window mode: Manual · AB baseline ${a} → ${b}`);
+      } else {
+        log("Window mode: Manual · AB baseline not set (optional; or use Mark A/B if uploaded).");
+      }
     } else {
-      log("Window mode: Mark CSV (C→D; A→B if present).");
+      log("Window mode: Mark CSV (C→D experiment; A→B baseline if present).");
     }
 
     const { experiment, baseline } = await runMergeWithBaseline(files, log, mergeOptions);
@@ -211,8 +227,9 @@ function download() {
         </div>
 
         <div v-if="windowMode === 'manual'" class="manual-fields">
+          <p class="manual-section-label">CD · Experiment (download)</p>
           <label class="field">
-            <span>Start timestamp</span>
+            <span>C · Start</span>
             <input
               v-model="manualStart"
               type="text"
@@ -221,7 +238,7 @@ function download() {
             />
           </label>
           <label class="field">
-            <span>End timestamp</span>
+            <span>D · End</span>
             <input
               v-model="manualEnd"
               type="text"
@@ -229,12 +246,32 @@ function download() {
               autocomplete="off"
             />
           </label>
+
+          <p class="manual-section-label">AB · Baseline (archive, optional)</p>
+          <label class="field">
+            <span>A · Baseline start</span>
+            <input
+              v-model="manualBaselineStart"
+              type="text"
+              placeholder="2026-08-05 17:08:39"
+              autocomplete="off"
+            />
+          </label>
+          <label class="field">
+            <span>B · Baseline end</span>
+            <input
+              v-model="manualBaselineEnd"
+              type="text"
+              placeholder="2026-08-05 17:13:43"
+              autocomplete="off"
+            />
+          </label>
           <p class="hint">
-            Format: YYYY-MM-DD HH:mm:ss (or datetime-local style with T). Keeps 1 Hz rows in [start, end]. Mark CSV optional for notes.
+            Format: YYYY-MM-DD HH:mm:ss. CD is required for download; A/B both filled enables baseline archive. Mark CSV optional for event notes.
           </p>
         </div>
         <p v-else class="hint">
-          Uses C→D (or 开始/结束) from Mark CSV. Switch to Manual time to type the cut window.
+          Uses C→D for experiment and A→B for baseline from Mark CSV. Switch to Manual time to type CD / AB windows.
         </p>
       </section>
 
@@ -360,6 +397,19 @@ function download() {
 .manual-fields {
   display: grid;
   gap: 10px;
+}
+
+.manual-section-label {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.manual-section-label:first-child {
+  margin-top: 0;
 }
 
 .actions {

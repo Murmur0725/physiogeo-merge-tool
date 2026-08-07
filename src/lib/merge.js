@@ -565,6 +565,7 @@ export async function runMerge(files, log = () => {}, options = {}) {
 
 async function prepareMergeContext(files, log, options = {}) {
   const manual = options.manualWindow;
+  const manualBaseline = options.manualBaselineWindow;
   let allMarks = [];
   let experimentMarks;
   let baselineMarks = null;
@@ -587,14 +588,32 @@ async function prepareMergeContext(files, log, options = {}) {
     experimentMarks = buildWindowFromRange(start, end, allMarks, {
       window: "cd",
       kind: "experiment_cd",
-      label: "manual window"
+      label: "manual CD (experiment)"
     });
 
-    if (allMarks.length && options.requireBaseline !== false) {
-      try {
-        baselineMarks = resolveWindow(allMarks, "ab");
-      } catch (error) {
-        log(`Baseline AB skipped: ${error.message}`);
+    if (options.requireBaseline !== false) {
+      const a = String(manualBaseline?.start ?? "").trim();
+      const b = String(manualBaseline?.end ?? "").trim();
+      if (a && b) {
+        try {
+          const baselineStart = normalizeTimestampInput(a);
+          const baselineEnd = normalizeTimestampInput(b);
+          baselineMarks = buildWindowFromRange(baselineStart, baselineEnd, allMarks, {
+            window: "ab",
+            kind: "baseline_ab",
+            label: "manual AB (baseline)"
+          });
+        } catch (error) {
+          log(`Baseline AB skipped: ${error.message}`);
+        }
+      } else if (a || b) {
+        log("Baseline AB skipped: enter both A (start) and B (end), or leave both empty.");
+      } else if (allMarks.length) {
+        try {
+          baselineMarks = resolveWindow(allMarks, "ab");
+        } catch (error) {
+          log(`Baseline AB skipped: ${error.message}`);
+        }
       }
     }
   } else {
@@ -621,9 +640,10 @@ async function prepareMergeContext(files, log, options = {}) {
 
 /**
  * Generate experiment (CD) merge for download and baseline (AB) merge for archive.
- * Supports Mark C/D window or options.manualWindow { start, end }.
+ * Supports Mark C/D + A/B, or options.manualWindow / manualBaselineWindow.
  * @param {"chicago"|"beijing"} [options.eegTimezone="chicago"]
- * @param {{start:string,end:string}|null} [options.manualWindow]
+ * @param {{start:string,end:string}|null} [options.manualWindow] — CD experiment
+ * @param {{start:string,end:string}|null} [options.manualBaselineWindow] — AB baseline
  */
 export async function runMergeWithBaseline(files, log = () => {}, options = {}) {
   const { experimentMarks, baselineMarks, sensors } = await prepareMergeContext(files, log, {
