@@ -14,8 +14,13 @@ const subjectName = ref("");
 /** EEG Date/日期 clock: chicago = convert Asia/Shanghai → America/Chicago; beijing = as-is */
 const eegTimezone = ref("chicago");
 
+/** marks = C/D from Mark CSV; manual = typed start/end timestamps */
+const windowMode = ref("marks");
+const manualStart = ref("");
+const manualEnd = ref("");
+
 const fileSpecs = [
-  { key: "marks", label: "Mark CSV", accept: ".csv", color: "#22d3ee", hint: "Required · C/D (or 开始/结束); A/B optional for baseline" },
+  { key: "marks", label: "Mark CSV", accept: ".csv", color: "#22d3ee", hint: "C/D (or 开始/结束); A/B optional for baseline" },
   { key: "rr", label: "RR CSV", accept: ".csv", color: "#4ade80", hint: "Optional · timestamp + rr_ms" },
   { key: "eeg", label: "EEG Excel", accept: ".xlsx,.xls", color: "#a78bfa", hint: "Optional · Date, duration, Time-set, EEG rows" },
   { key: "gpx", label: "GPS GPX", accept: ".gpx,.xml", color: "#facc15", hint: "Optional · trkpt lat/lon + time" },
@@ -28,7 +33,7 @@ const running = ref(false);
 const rows = ref([]);
 const csv = ref("");
 const logs = ref([
-  "Ready. Enter equipment ID and name, upload Mark CSV (start/end timestamps required). RR / EEG / GPX / HR are optional — missing streams stay blank."
+  "Ready. Choose Mark CSV or Manual time for the cut window. RR / EEG / GPX / HR are optional."
 ]);
 const metrics = reactive({ rows: "--", gps: "--", rr: "--", eeg: "--", hr: "--" });
 const rangeText = ref("");
@@ -36,12 +41,36 @@ const baselineStatus = ref("");
 
 const PREVIEW_LIMIT = 80;
 
-const canMerge = computed(
-  () =>
-    subjectId.value.trim() !== "" &&
-    subjectName.value.trim() !== "" &&
-    Boolean(files.marks)
-);
+const visibleFileSpecs = computed(() => {
+  if (windowMode.value === "manual") {
+    return fileSpecs.map((spec) =>
+      spec.key === "marks"
+        ? { ...spec, hint: "Optional · event notes inside the manual window; A/B still enables baseline" }
+        : spec
+    );
+  }
+  return fileSpecs.map((spec) =>
+    spec.key === "marks" ? { ...spec, hint: `Required · ${spec.hint}` } : spec
+  );
+});
+
+const canMerge = computed(() => {
+  if (subjectId.value.trim() === "" || subjectName.value.trim() === "") return false;
+  if (windowMode.value === "manual") {
+    return manualStart.value.trim() !== "" && manualEnd.value.trim() !== "";
+  }
+  return Boolean(files.marks);
+});
+
+const gateHint = computed(() => {
+  if (subjectId.value.trim() === "" || subjectName.value.trim() === "") {
+    return "Enter equipment ID and name.";
+  }
+  if (windowMode.value === "manual") {
+    return "Enter start and end timestamps to cut the merge window.";
+  }
+  return "Upload Mark CSV (with C/D or 开始/结束).";
+});
 
 const previewRows = computed(() => rows.value.slice(0, PREVIEW_LIMIT));
 
@@ -55,6 +84,10 @@ const metricList = computed(() => [
 
 function log(message) {
   logs.value.push(message);
+}
+
+function setWindowMode(mode) {
+  windowMode.value = mode;
 }
 
 async function generate() {
@@ -71,17 +104,28 @@ async function generate() {
     log(
       `Route timezone: ${EEG_TIMEZONE_OPTIONS[eegTimezone.value]?.label || eegTimezone.value}`
     );
-    log("Windows: C→D for site merge; A→B if present. Optional sensors fill when available.");
 
-    const { experiment, baseline } = await runMergeWithBaseline(files, log, {
+    const mergeOptions = {
       eegTimezone: eegTimezone.value
-    });
+    };
+
+    if (windowMode.value === "manual") {
+      mergeOptions.manualWindow = {
+        start: manualStart.value.trim(),
+        end: manualEnd.value.trim()
+      };
+      log(`Window mode: Manual time (${mergeOptions.manualWindow.start} → ${mergeOptions.manualWindow.end})`);
+    } else {
+      log("Window mode: Mark CSV (C→D; A→B if present).");
+    }
+
+    const { experiment, baseline } = await runMergeWithBaseline(files, log, mergeOptions);
 
     // Only CD experiment merge is held for website preview/download.
     rows.value = experiment.rows;
     csv.value = experiment.csv;
     Object.assign(metrics, experiment.metrics);
-    rangeText.value = `CD ${experiment.range}`;
+    rangeText.value = `${experiment.label || "CD"} ${experiment.range}`;
 
     log("Archiving available CD / AB / raw files to private DB…");
     const archived = await archiveSession({
@@ -146,16 +190,65 @@ function download() {
       </section>
 
       <section class="card">
+        <h2>Cut window</h2>
+        <div class="mode-toggle" role="group" aria-label="Cut window mode">
+          <button
+            type="button"
+            class="mode-btn"
+            :class="{ active: windowMode === 'marks' }"
+            @click="setWindowMode('marks')"
+          >
+            Mark CSV
+          </button>
+          <button
+            type="button"
+            class="mode-btn"
+            :class="{ active: windowMode === 'manual' }"
+            @click="setWindowMode('manual')"
+          >
+            Manual time
+          </button>
+        </div>
+
+        <div v-if="windowMode === 'manual'" class="manual-fields">
+          <label class="field">
+            <span>Start timestamp</span>
+            <input
+              v-model="manualStart"
+              type="text"
+              placeholder="2026-08-05 17:31:57"
+              autocomplete="off"
+            />
+          </label>
+          <label class="field">
+            <span>End timestamp</span>
+            <input
+              v-model="manualEnd"
+              type="text"
+              placeholder="2026-08-05 17:50:05"
+              autocomplete="off"
+            />
+          </label>
+          <p class="hint">
+            Format: YYYY-MM-DD HH:mm:ss (or datetime-local style with T). Keeps 1 Hz rows in [start, end]. Mark CSV optional for notes.
+          </p>
+        </div>
+        <p v-else class="hint">
+          Uses C→D (or 开始/结束) from Mark CSV. Switch to Manual time to type the cut window.
+        </p>
+      </section>
+
+      <section class="card">
         <h2>Input Files</h2>
         <FileDrop
-          v-for="spec in fileSpecs"
+          v-for="spec in visibleFileSpecs"
           :key="spec.key"
           v-bind="spec"
           :file="files[spec.key]"
           @select="(f) => (files[spec.key] = f)"
         />
         <p class="hint">
-          Only Mark start/end timestamps are required. Missing RR / EEG / GPX / HR leave blank columns. CD download stays local; available files archive privately.
+          Missing RR / EEG / GPX / HR leave blank columns. CD download stays local; available files archive privately.
         </p>
       </section>
 
@@ -166,7 +259,7 @@ function download() {
         <button class="btn btn-ghost" :disabled="!csv" @click="download">Download Merge</button>
       </div>
       <p v-if="baselineStatus" class="hint gate-hint">{{ baselineStatus }}</p>
-      <p v-if="!canMerge" class="hint gate-hint">Enter equipment ID and name, and upload Mark CSV (with C/D or 开始/结束).</p>
+      <p v-if="!canMerge" class="hint gate-hint">{{ gateHint }}</p>
     </aside>
 
     <main class="main">
@@ -233,6 +326,40 @@ function download() {
   align-self: start;
   position: sticky;
   top: 78px;
+}
+
+.mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.mode-btn {
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.mode-btn.active {
+  background: rgba(34, 211, 238, 0.16);
+  color: #a5f3fc;
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.35);
+}
+
+.manual-fields {
+  display: grid;
+  gap: 10px;
 }
 
 .actions {

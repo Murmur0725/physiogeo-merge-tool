@@ -271,18 +271,44 @@ function resolveWindow(marks, windowKey) {
     throw new Error(`${spec.label} window is inverted: ${start.time} > ${end.time}`);
   }
 
-  const clipped = marks.filter((m) => m.time >= start.time && m.time <= end.time);
+  return buildWindowFromRange(start.time, end.time, marks, {
+    window: windowKey,
+    kind: spec.kind,
+    label: spec.label
+  });
+}
+
+/**
+ * Normalize a typed / datetime-local string to `YYYY-MM-DD HH:mm:ss`.
+ */
+export function normalizeTimestampInput(value) {
+  const text = String(value ?? "").trim();
+  if (!text) {
+    throw new Error("Timestamp is empty.");
+  }
+  const date = toSecond(parseLocalDateTime(text));
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid timestamp: "${text}". Use YYYY-MM-DD HH:mm:ss`);
+  }
+  return formatTime(date);
+}
+
+function buildWindowFromRange(start, end, marks = [], meta = {}) {
+  if (start > end) {
+    throw new Error(`Window is inverted: ${start} > ${end}`);
+  }
+  const clipped = marks.filter((m) => m.time >= start && m.time <= end);
   const map = new Map();
   clipped.forEach((m) => {
     map.set(m.time, map.has(m.time) ? `${map.get(m.time)} | ${m.mark}` : m.mark);
   });
   return {
-    start: start.time,
-    end: end.time,
+    start,
+    end,
     map,
-    window: windowKey,
-    kind: spec.kind,
-    label: spec.label
+    window: meta.window || "cd",
+    kind: meta.kind || "experiment_cd",
+    label: meta.label || "manual window"
   };
 }
 
@@ -520,53 +546,105 @@ async function loadSensors(files, log, options = {}) {
 
 /**
  * Run the merge pipeline for one window.
- * Only Mark (start/end timestamps) is required; RR/EEG/GPX/HR may be absent.
- * @param {"cd"|"ab"} [options.window="cd"] — CD = website merge; AB = baseline (archive only)
- * @param {"chicago"|"beijing"} [options.eegTimezone="chicago"] — EEG Date/日期 clock
+ * Mark CSV or manualWindow start/end is required; RR/EEG/GPX/HR may be absent.
+ * @param {"cd"|"ab"} [options.window="cd"]
+ * @param {"chicago"|"beijing"} [options.eegTimezone="chicago"]
+ * @param {{start:string,end:string}|null} [options.manualWindow]
  */
 export async function runMerge(files, log = () => {}, options = {}) {
-  if (!files?.marks) {
-    throw new Error("Mark CSV is required (needs start/end timestamps: C/D or 开始/结束).");
-  }
   const windowKey = options.window || "cd";
-  log("Reading Mark file...");
-  const allMarks = await loadAllMarks(files.marks);
-  const marks = resolveWindow(allMarks, windowKey);
-  const rows = buildTimeline(marks.start, marks.end);
-  log(`${marks.label}: ${marks.start} → ${marks.end} (${rows.length} seconds)`);
-
-  const sensors = await loadSensors(files, log, options);
-  return assembleRows(rows, { ...sensors, marks });
+  const { experimentMarks, sensors } = await prepareMergeContext(files, log, {
+    ...options,
+    windowKey,
+    requireBaseline: false
+  });
+  const rows = buildTimeline(experimentMarks.start, experimentMarks.end);
+  log(`${experimentMarks.label}: ${experimentMarks.start} → ${experimentMarks.end} (${rows.length} seconds)`);
+  return assembleRows(rows, { ...sensors, marks: experimentMarks });
 }
 
-/**
- * Generate experiment (CD) merge for download and baseline (AB) merge for archive.
- * Baseline is never exposed as a website download — callers must archive it server-side.
- * Only Mark is required; missing sensor files leave blank columns.
- * @param {"chicago"|"beijing"} [options.eegTimezone="chicago"]
- */
-export async function runMergeWithBaseline(files, log = () => {}, options = {}) {
-  if (!files?.marks) {
-    throw new Error("Mark CSV is required (needs start/end timestamps: C/D or 开始/结束).");
-  }
-  log("Reading Mark file...");
-  const allMarks = await loadAllMarks(files.marks);
-  const experimentMarks = resolveWindow(allMarks, "cd");
-  const experimentTimeline = buildTimeline(experimentMarks.start, experimentMarks.end);
-  log(`${experimentMarks.label}: ${experimentMarks.start} → ${experimentMarks.end} (${experimentTimeline.length} seconds)`);
-
+async function prepareMergeContext(files, log, options = {}) {
+  const manual = options.manualWindow;
+  let allMarks = [];
+  let experimentMarks;
   let baselineMarks = null;
-  let baselineTimeline = null;
-  try {
-    baselineMarks = resolveWindow(allMarks, "ab");
-    baselineTimeline = buildTimeline(baselineMarks.start, baselineMarks.end);
-    log(`${baselineMarks.label}: ${baselineMarks.start} → ${baselineMarks.end} (${baselineTimeline.length} seconds)`);
-  } catch (error) {
-    log(`Baseline AB skipped: ${error.message}`);
+
+  if (manual?.start && manual?.end) {
+    const start = normalizeTimestampInput(manual.start);
+    const end = normalizeTimestampInput(manual.end);
+
+    if (files?.marks) {
+      try {
+        log("Reading Mark file (optional annotations)…");
+        allMarks = await loadAllMarks(files.marks);
+      } catch (error) {
+        log(`Mark skipped: ${error.message}`);
+      }
+    } else {
+      log("Mark CSV not uploaded — cutting by manual timestamps only.");
+    }
+
+    experimentMarks = buildWindowFromRange(start, end, allMarks, {
+      window: "cd",
+      kind: "experiment_cd",
+      label: "manual window"
+    });
+
+    if (allMarks.length && options.requireBaseline !== false) {
+      try {
+        baselineMarks = resolveWindow(allMarks, "ab");
+      } catch (error) {
+        log(`Baseline AB skipped: ${error.message}`);
+      }
+    }
+  } else {
+    if (!files?.marks) {
+      throw new Error("Mark CSV is required (needs start/end timestamps: C/D or 开始/结束), or switch to Manual time.");
+    }
+    log("Reading Mark file...");
+    allMarks = await loadAllMarks(files.marks);
+    experimentMarks = resolveWindow(allMarks, options.windowKey || "cd");
+
+    if (options.requireBaseline !== false) {
+      try {
+        baselineMarks = resolveWindow(allMarks, "ab");
+      } catch (error) {
+        log(`Baseline AB skipped: ${error.message}`);
+      }
+    }
   }
 
   log("Reading optional RR / EEG / GPX / HR (missing streams stay blank)…");
   const sensors = await loadSensors(files, log, options);
+  return { experimentMarks, baselineMarks, sensors };
+}
+
+/**
+ * Generate experiment (CD) merge for download and baseline (AB) merge for archive.
+ * Supports Mark C/D window or options.manualWindow { start, end }.
+ * @param {"chicago"|"beijing"} [options.eegTimezone="chicago"]
+ * @param {{start:string,end:string}|null} [options.manualWindow]
+ */
+export async function runMergeWithBaseline(files, log = () => {}, options = {}) {
+  const { experimentMarks, baselineMarks, sensors } = await prepareMergeContext(files, log, {
+    ...options,
+    windowKey: "cd",
+    requireBaseline: true
+  });
+
+  const experimentTimeline = buildTimeline(experimentMarks.start, experimentMarks.end);
+  log(
+    `${experimentMarks.label}: ${experimentMarks.start} → ${experimentMarks.end} (${experimentTimeline.length} seconds)`
+  );
+
+  const baselineTimeline = baselineMarks
+    ? buildTimeline(baselineMarks.start, baselineMarks.end)
+    : null;
+  if (baselineTimeline) {
+    log(
+      `${baselineMarks.label}: ${baselineMarks.start} → ${baselineMarks.end} (${baselineTimeline.length} seconds)`
+    );
+  }
 
   const experiment = assembleRows(experimentTimeline, { ...sensors, marks: experimentMarks });
   const baseline = baselineMarks
