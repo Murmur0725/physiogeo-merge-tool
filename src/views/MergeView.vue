@@ -80,7 +80,7 @@ const canMerge = computed(() => {
 
 const gateHint = computed(() => {
   if (subjectId.value.trim() === "" || subjectName.value.trim() === "") {
-    return "Enter equipment ID and name.";
+    return "Enter Subjector ID and name.";
   }
   if (isV2.value) return windowMode.value === "manual"
     ? "Upload ZIP + EEG CSV / Excel and enter both baseline (A/B) and experiment (C/D) windows."
@@ -121,7 +121,7 @@ async function generate() {
     const id = subjectId.value.trim();
     const name = subjectName.value.trim();
     const inputFiles = { ...files };
-    log(`Equipment: ${id} ${name}`);
+    log(`Subjector ID: ${id}; Name: ${name}`);
     log(
       `Route timezone: ${EEG_TIMEZONE_OPTIONS[eegTimezone.value]?.label || eegTimezone.value}`
     );
@@ -210,9 +210,9 @@ function download() {
       <section class="card">
         <h2>{{ isV2 ? "Merge V2" : "Merge V1" }}</h2>
         <p class="hint">{{ isV2 ? "Phone ZIP + EEG CSV / Excel. Baseline and experiment share the existing private archive." : "Original five-file workflow: Mark, RR, EEG Excel, GPX and heart rate." }}</p>
-        <h2><span class="dot" style="background: var(--rainbow)"></span>Equipment</h2>
+        <h2><span class="dot" style="background: var(--rainbow)"></span>Subjector</h2>
         <label class="field">
-          <span>Equipment ID</span>
+          <span>Subjector ID</span>
           <input v-model="subjectId" type="text" placeholder="e.g. 001" autocomplete="off" />
         </label>
         <label class="field">
