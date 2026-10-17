@@ -2,6 +2,11 @@ import { isInstrumentComplete } from "./surveyComplete.js";
 import { isUmuxComplete, scoreUmux, umuxAnswersFromDraft, UMUX_VERSION } from "./umux.js";
 import { walkingOrderMetadata } from "./walkingOrder.js";
 
+export function requireReviewSubjectId(value) {
+  if (typeof value !== "string" || !value.trim()) throw new Error("Please enter Subjector ID before submitting.");
+  return value.trim();
+}
+
 export function isPosttestComplete(segments, confirmed, platformAnswers) {
   return segments.length > 0 && segments.every((segment) =>
     isInstrumentComplete("posttest", confirmed[segment.id]?.answers)) && isUmuxComplete(platformAnswers);

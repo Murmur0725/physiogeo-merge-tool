@@ -114,6 +114,13 @@ env vars are configured (insert-only; anon cannot SELECT).
 
 ## Post-test workflow
 
+Review setup requires **Subjector ID** in both Pre-test and Post-test. Use the
+same ID as Merge V1 / V2 so questionnaire and physiological records share the
+same `subject_id`. The value persists when switching phases, is trimmed before
+saving, and is included in the existing session row and private JSON snapshot.
+Missing or whitespace-only IDs block submission and archive writes. No schema
+migration is needed.
+
 Review setup uses a two-option **Walk order** dropdown in place of Equipment ID: **Clockwise: commercial → green** (`clockwise_commercial_first`, default) or **Counterclockwise: green → commercial** (`counterclockwise_green_first`). The selection persists when switching between Pre-test and Post-test. Both phases save the condition as `walkingOrder` plus `walkingOrderLabel` in each archived response and at the top of the JSON snapshot; it is kept separate from participant identity. No schema migration is needed. Review labels, photo placeholders, and map language are English.
 
 On Review, switch to Post-test, answer and confirm each of the two route sections (POMS-30 plus the open-ended walking experience). Confirming the last section opens a final **UX/UI evaluation** with the four [UMUX statements](https://www.uxtesttools.com/tools/umux). Each question requires one answer from 1 (Strongly disagree) to 7 (Strongly agree); no answer is preselected. Final submission stays disabled until both route sections are confirmed and all four UMUX items are answered. Returning to edit a route answer requires confirming that section again, while retaining the UMUX draft.

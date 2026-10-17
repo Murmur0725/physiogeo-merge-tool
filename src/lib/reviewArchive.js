@@ -5,7 +5,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { safeFilePart } from "./merge";
-import { buildReviewPayload } from "./reviewPayload.js";
+import { buildReviewPayload, requireReviewSubjectId } from "./reviewPayload.js";
 
 const BUCKET = "merge-private";
 
@@ -45,6 +45,8 @@ export async function saveReviewSurvey({
   answers,
   scores
 }) {
+  try { subjectId = requireReviewSubjectId(subjectId); }
+  catch (error) { return { ok: false, reason: error.message }; }
   const client = getClient();
   if (!client) return notConfigured("Survey");
 
@@ -186,6 +188,8 @@ export async function saveReviewSession({
   platformEvaluation,
   walkingOrder
 }) {
+  try { subjectId = requireReviewSubjectId(subjectId); }
+  catch (error) { return { ok: false, reason: error.message }; }
   const sessionId = crypto.randomUUID();
   let payload;
   try {

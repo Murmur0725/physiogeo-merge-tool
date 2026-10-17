@@ -24,6 +24,7 @@ const parsed = parseRouteConfig(decodedRoute);
 /** @type {import('vue').Ref<'pre'|'post'>} */
 const phase = ref("pre");
 const subjectId = ref("");
+const hasSubjectId = computed(() => subjectId.value.trim().length > 0);
 const walkingOrder = ref(WALKING_ORDER_OPTIONS[0].value);
 const subjectName = ref("");
 const subjectAge = ref("");
@@ -189,6 +190,10 @@ function openPlatformEvaluation() {
 
 async function submitPretest(payload) {
   if (saving.value) return;
+  if (!hasSubjectId.value) {
+    saveStatus.value = { ok: false, message: "Please enter Subjector ID before submitting." };
+    return;
+  }
   const answers = payload?.answers || pretestDraft.value;
   if (!isInstrumentComplete("pretest", answers)) {
     saveStatus.value = { ok: false, message: "Please complete GAD-7 and all mood items." };
@@ -218,7 +223,7 @@ async function submitPretest(payload) {
     };
     pretestConfirmed.value = { answers: normalized, scores };
     const result = await savePretestSession({
-      subjectId: subjectId.value.trim() || "anonymous",
+      subjectId: subjectId.value.trim(),
       subjectName: subjectName.value.trim() || "anonymous",
       walkingOrder: walkingOrder.value,
       answers: normalized,
@@ -242,6 +247,10 @@ async function submitPretest(payload) {
 }
 
 async function submitAll() {
+  if (!hasSubjectId.value) {
+    saveStatus.value = { ok: false, message: "Please enter Subjector ID before submitting." };
+    return;
+  }
   if (isPre.value || !posttestComplete.value || saving.value) return;
   saving.value = true;
   saveStatus.value = null;
@@ -252,7 +261,7 @@ async function submitAll() {
       scores: confirmed[s.id].scores
     }));
     const result = await saveReviewSession({
-      subjectId: subjectId.value.trim() || "anonymous",
+      subjectId: subjectId.value.trim(),
       subjectName: subjectName.value.trim() || "anonymous",
       walkingOrder: walkingOrder.value,
       routeConfigId: routeMeta.value.id,
@@ -311,6 +320,10 @@ async function submitAll() {
           </div>
         </label>
         <label>
+          Subjector ID
+          <input v-model="subjectId" type="text" placeholder="e.g. 001" autocomplete="off" required :disabled="saving" />
+        </label>
+        <label>
           Name
           <input v-model="subjectName" type="text" placeholder="e.g. Alex" autocomplete="off" />
         </label>
@@ -367,7 +380,7 @@ async function submitAll() {
             type="button"
             class="btn-submit-all"
             :class="{ ready: posttestStep === 'usability' ? posttestComplete : allSegmentsComplete }"
-            :disabled="saving || (posttestStep === 'usability' ? !posttestComplete : !allSegmentsComplete)"
+            :disabled="saving || (posttestStep === 'usability' ? !posttestComplete || !hasSubjectId : !allSegmentsComplete)"
             :aria-label="posttestStep === 'usability' ? 'Submit post-test' : 'Continue to UX/UI evaluation'"
             @click="posttestStep === 'usability' ? submitAll() : openPlatformEvaluation()"
           >
@@ -412,6 +425,8 @@ async function submitAll() {
         <PretestSurvey
           v-model="pretestDraft"
           :submitting="saving"
+          :submission-allowed="hasSubjectId"
+          :submission-hint="hasSubjectId ? '' : 'Please enter Subjector ID above. Use the same ID as Merge V1 / V2.'"
           @submit="submitPretest"
         />
       </div>
@@ -427,9 +442,9 @@ async function submitAll() {
         </div>
         <UmuxSurvey :model-value="umuxDraft" :disabled="saving" @update:model-value="updateUmuxDraft" />
         <div class="usability-submit">
-          <p>Submit once you have answered all four questions. Your route surveys and platform evaluation will be saved together.</p>
+          <p>{{ hasSubjectId ? "Submit once you have answered all four questions. Your route surveys and platform evaluation will be saved together." : "Please enter Subjector ID above before submitting. Use the same ID as Merge V1 / V2." }}</p>
           <button type="button" class="btn-submit-all" :class="{ ready: posttestComplete }"
-            :disabled="!posttestComplete || saving" @click="submitAll">
+            :disabled="!posttestComplete || !hasSubjectId || saving" @click="submitAll">
             {{ saving ? "Submitting…" : "Submit post-test" }}
           </button>
         </div>
@@ -555,7 +570,7 @@ async function submitAll() {
 
 .toolbar-fields {
   display: grid;
-  grid-template-columns: minmax(132px, 0.9fr) minmax(110px, 1fr) minmax(220px, 1.4fr);
+  grid-template-columns: minmax(100px, 0.8fr) minmax(90px, 0.8fr) minmax(100px, 0.9fr) minmax(220px, 1.4fr);
   gap: 12px 14px;
   align-items: end;
   min-width: 0;
@@ -563,7 +578,7 @@ async function submitAll() {
 
 .toolbar-fields.is-pre {
   grid-column: 2 / -1;
-  grid-template-columns: minmax(132px, 0.9fr) minmax(88px, 1fr) minmax(220px, 1.5fr) repeat(4, minmax(72px, 1fr));
+  grid-template-columns: minmax(100px, 0.8fr) minmax(88px, 0.8fr) minmax(88px, 1fr) minmax(220px, 1.5fr) repeat(4, minmax(72px, 1fr));
 }
 
 .phase-pre .archive-block {

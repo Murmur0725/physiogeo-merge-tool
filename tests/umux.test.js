@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { isUmuxComplete, scoreUmux, umuxAnswersFromDraft, umuxAnsweredCount } from "../src/lib/umux.js";
-import { buildReviewPayload, isPosttestComplete } from "../src/lib/reviewPayload.js";
+import { buildReviewPayload, isPosttestComplete, requireReviewSubjectId } from "../src/lib/reviewPayload.js";
 import { WALKING_ORDER_OPTIONS } from "../src/lib/walkingOrder.js";
 
 const validUmux = { u1: 6, u2: 2, u3: 5, u4: 3 };
@@ -12,6 +12,12 @@ const segments = [
 ];
 const responses = segments.map((segment) => ({ segmentId: segment.id, answers: { ...moodAnswers } }));
 const submission = () => ({ sessionId: "test-session", instrumentId: "posttest", segments, responses, platformEvaluation: { answers: validUmux } });
+
+test("Review identity rejects missing IDs before archive and preserves the participant key used by Merge", () => {
+  for (const value of [undefined, null, "", "  ", 1]) assert.throws(() => requireReviewSubjectId(value), /Subjector ID/);
+  assert.equal(requireReviewSubjectId(" 001 "), "001");
+  assert.equal(requireReviewSubjectId("sub——001"), "sub——001");
+});
 
 test("UMUX uses all four seven-point answers and rejects missing or invalid choices", () => {
   assert.equal(isUmuxComplete(validUmux), true);

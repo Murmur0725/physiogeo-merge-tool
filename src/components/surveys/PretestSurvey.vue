@@ -15,7 +15,9 @@ import {
 
 const props = defineProps({
   modelValue: { type: Object, default: () => ({}) },
-  submitting: { type: Boolean, default: false }
+  submitting: { type: Boolean, default: false },
+  submissionAllowed: { type: Boolean, default: true },
+  submissionHint: { type: String, default: "" }
 });
 const emit = defineEmits(["update:modelValue", "submit"]);
 
@@ -29,7 +31,7 @@ const complete = computed(
 );
 
 function submit() {
-  if (!complete.value || props.submitting) return;
+  if (!complete.value || props.submitting || !props.submissionAllowed) return;
   emit("submit", {
     answers: {
       ...gad7AnswersFromDraft(answers.value),
@@ -63,10 +65,11 @@ function submit() {
         />
       </section>
     </div>
+    <p v-if="submissionHint" role="status">{{ submissionHint }}</p>
     <button
       type="button"
       class="btn primary"
-      :disabled="!complete || submitting"
+      :disabled="!complete || submitting || !submissionAllowed"
       @click="submit"
     >
       {{ submitting ? "Submitting…" : "Submit pre-test" }}
