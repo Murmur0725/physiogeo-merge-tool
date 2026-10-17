@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { zipSync, strToU8 } from "fflate";
-import { alignSession, extractSession, formatZoned, parseEEGCsv, parseZoned, runMergeV2 } from "../src/lib/mergeV2.js";
+import * as XLSX from "xlsx";
+import { alignSession, extractSession, formatZoned, parseEEGCsv, parseEEGFile, parseZoned, runMergeV2 } from "../src/lib/mergeV2.js";
 import { archiveStorageKey, rawSlots } from "../src/lib/archivePaths.js";
 import { finalColumns, parseCsv, runMergeWithBaseline } from "../src/lib/merge.js";
 
@@ -121,6 +122,48 @@ test("V2 file entry point processes ZIP plus CSV and requires both uploads", asy
   assert.equal(result.baseline.metrics.eeg, 1);
   assert.equal(result.experiment.metrics.eeg, 1);
   await assert.rejects(runMergeV2({}), /Upload/);
+});
+
+test("Native EEG Excel reconstructs split numbers before aligning series and keeps short-series gaps", async () => {
+  const values = Array.from({ length: 5000 }, (_, i) => 100000 + i);
+  const series = values.join(",");
+  const rows = [
+    ["Date/日期", "2026-10-17 18:00:00"], ["时长(Duration)/秒(ss)", "5000"],
+    ["Delta/δ波", series.slice(0, 30000)], ["Delta/δ波", series.slice(30000)],
+    ["High-Alpha/高α波", series.slice(0, 30000)], ["High-Alpha/高α波", series.slice(30000)],
+    ["MentalEffort/用脑度", "1,2"], ["Time-set/时间集合", Array.from({ length: 5000 }, (_, i) => i + 1).join(",")]
+  ];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), "Sheet1");
+  const file = new File([XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })], "native-eeg.xlsx");
+  const { samples, info } = await parseEEGFile(file, "Asia/Shanghai");
+  assert.equal(samples.size, 5000);
+  const keys = [...samples.keys()];
+  for (const i of [0, 4284, 4285, 4286, 4999]) assert.equal(samples.get(keys[i]).delta, values[i]);
+  assert.equal(samples.get(keys[0]).mental_effort, 1);
+  assert.equal(samples.get(keys[1]).mental_effort, 2);
+  assert.equal(samples.get(keys[2]).mental_effort, undefined);
+  assert.deepEqual(info.reconstructed_series, ["Delta/δ波", "High-Alpha/高α波"]);
+  assert.equal(info.field_sample_counts.delta, 5000);
+  assert.equal(info.field_sample_counts.mental_effort, 2);
+  const csv = XLSX.utils.sheet_to_csv(workbook.Sheets.Sheet1);
+  assert.deepEqual([...parseEEGCsv(csv, "Asia/Shanghai")], [...samples]);
+});
+
+test("V2 directly merges an Excel EEG upload and rejects ambiguous repeated series", async () => {
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    ["Date/日期", "2026-10-17 18:00:04"], ["时长(Duration)/秒(ss)", 4],
+    ["Attention/注意力", "50,60"], ["Time-set/时间集合", "0,4"]
+  ]), "EEG");
+  const result = await runMergeV2({
+    zip: new File([zipSync(zipEntries())], "session.zip"),
+    eeg: new File([XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })], "eeg.xlsx")
+  });
+  assert.equal(result.baseline.rows[0].attention, 50);
+  assert.equal(result.experiment.rows[0].attention, 60);
+  assert.equal(result.experiment.metrics.eeg_source.sheet, "EEG");
+  assert.throws(() => parseEEGCsv('Date/日期,2026-10-17 18:00:04\n时长(Duration)/秒(ss),4\nTime-set/时间集合,"0,4"\nAttention/注意力,"50,60"\nAttention/注意力,70', "Asia/Shanghai"), /not a recognized continuation/);
 });
 
 test("Both versions share archive structure while V2 subjects and sessions never collide with V1", () => {

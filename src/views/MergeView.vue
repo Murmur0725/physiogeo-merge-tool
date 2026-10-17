@@ -42,7 +42,7 @@ const rows = ref([]);
 const csv = ref("");
 const logs = ref([
   isV2.value
-    ? "V2 ready. Upload the phone session ZIP and EEG CSV. A/B = baseline; C/D = experiment. Both windows are required."
+    ? "V2 ready. Upload the phone session ZIP and EEG CSV / Excel. A/B = baseline; C/D = experiment. Both windows are required."
     : "V1 ready. Choose Mark CSV or Manual time. CD = experiment download; AB = baseline archive. Sensors optional."
 ]);
 const metrics = reactive({ rows: "--", gps: "--", rr: "--", eeg: "--", hr: "--" });
@@ -54,7 +54,7 @@ const PREVIEW_LIMIT = 80;
 const visibleFileSpecs = computed(() => {
   if (isV2.value) return [
     { key: "zip", label: "Phone session ZIP", accept: ".zip", color: "#22d3ee", hint: "Required · the complete APP export (13 files)" },
-    { key: "eeg", label: "EEG CSV", accept: ".csv", color: "#a78bfa", hint: "Required · timestamped rows or Date / Duration / Time-set format" }
+    { key: "eeg", label: "EEG CSV / Excel", accept: ".csv,.xlsx,.xls", color: "#a78bfa", hint: "Required · native EEG export (.xlsx / .xls / .csv)" }
   ];
   if (windowMode.value === "manual") {
     return fileSpecs.map((spec) =>
@@ -83,8 +83,8 @@ const gateHint = computed(() => {
     return "Enter equipment ID and name.";
   }
   if (isV2.value) return windowMode.value === "manual"
-    ? "Upload ZIP + EEG CSV and enter both baseline (A/B) and experiment (C/D) windows."
-    : "Upload ZIP + EEG CSV. The ZIP must contain A/B baseline and C/D experiment marks.";
+    ? "Upload ZIP + EEG CSV / Excel and enter both baseline (A/B) and experiment (C/D) windows."
+    : "Upload ZIP + EEG CSV / Excel. The ZIP must contain A/B baseline and C/D experiment marks.";
   if (windowMode.value === "manual") {
     return "Enter C (start) and D (end) for the experiment window. A/B baseline is optional.";
   }
@@ -115,6 +115,7 @@ async function generate() {
   rows.value = [];
   rangeText.value = "";
   baselineStatus.value = "";
+  Object.assign(metrics, { rows: "--", gps: "--", rr: "--", eeg: "--", hr: "--" });
   running.value = true;
   try {
     const id = subjectId.value.trim();
@@ -208,7 +209,7 @@ function download() {
     <aside class="side">
       <section class="card">
         <h2>{{ isV2 ? "Merge V2" : "Merge V1" }}</h2>
-        <p class="hint">{{ isV2 ? "Phone ZIP + EEG CSV. Baseline and experiment share the existing private archive." : "Original five-file workflow: Mark, RR, EEG Excel, GPX and heart rate." }}</p>
+        <p class="hint">{{ isV2 ? "Phone ZIP + EEG CSV / Excel. Baseline and experiment share the existing private archive." : "Original five-file workflow: Mark, RR, EEG Excel, GPX and heart rate." }}</p>
         <h2><span class="dot" style="background: var(--rainbow)"></span>Equipment</h2>
         <label class="field">
           <span>Equipment ID</span>
@@ -307,7 +308,7 @@ function download() {
           @select="(f) => (files[spec.key] = f)"
         />
         <p class="hint">
-          {{ isV2 ? "Output: one row per second, same columns as V1. Valid RR values are averaged within each second. Missing physiology stays blank; GPS uses the latest usable fix, up to 15 seconds old. Original ZIP and EEG CSV archive privately with the results." : "Missing RR / EEG / GPX / HR leave blank columns. CD download stays local; available files archive privately." }}
+          {{ isV2 ? "Output: one row per second, same columns as V1. Valid RR values are averaged within each second. Missing physiology stays blank; GPS uses the latest usable fix, up to 15 seconds old. Original ZIP and EEG file archive privately with the results. Check the processing log for source timing and signal warnings." : "Missing RR / EEG / GPX / HR leave blank columns. CD download stays local; available files archive privately." }}
         </p>
       </section>
 

@@ -14,23 +14,36 @@ Vue 3 + Vite, deployed on GitHub Pages.
   The original Mark CSV, RR CSV, EEG Excel, GPX and heart-rate CSV workflow.
   The original root URL remains a V1 alias. Existing timezone, RR forward-fill
   and GPS interpolation behavior is preserved.
-- **V2 — phone ZIP + EEG CSV:** https://murmur0725.github.io/physiogeo-merge-tool/v2/
-  Upload one complete Somatic City phone session ZIP and one EEG CSV.
+- **V2 — phone ZIP + EEG CSV / Excel:** https://murmur0725.github.io/physiogeo-merge-tool/v2/
+  Upload one complete Somatic City phone session ZIP and one EEG CSV or Excel
+  (`.xlsx` / `.xls`) file. Excel must contain one recognizable EEG worksheet.
   The ZIP can contain an enclosing folder, but must contain exactly one each of
   `metadata.json`, `marks.csv`, `heart_rate_raw.csv`, `rr_raw.csv`, `gps_raw.csv`.
   Keep the complete 13-file export: the original ZIP is archived intact.
   Compressed and total uncompressed ZIP size are each limited to 100 MiB.
 
-V2 accepts EEG CSV in either of these layouts:
+V2 accepts EEG data in either of these layouts:
 
 1. One sample per row: a `time`, `timestamp`, `datetime`, `timestamp_utc`,
    `received_at_utc`, `unix_ms`, `received_unix_ms` or `timestamp_unix_ms`
    column, plus EEG columns using the existing output names (`attention`,
    `relaxation`, `delta`, etc.) or the original bilingual EEG labels.
    Unix columns are milliseconds. ISO timestamps with a UTC offset are absolute.
-2. The original horizontal EEG layout exported as CSV: `Date/日期`,
+2. The original horizontal EEG layout in Excel or CSV: `Date/日期`,
    `时长(Duration)/秒(ss)`, `Time-set/时间集合`, and EEG feature rows.
    Comma-delimited series must be quoted as standard CSV fields.
+   The native exporter splits long series strings into repeated rows at 30,000
+   characters (32,767-character chunks are also recognized). V2 reconstructs
+   adjacent chunks character-for-character before splitting samples, including
+   numbers split between rows. Shorter series remain blank after their last
+   available sample. Duplicate timestamps are averaged within the same second.
+
+The processing log reports EEG sample coverage, reconstructed series, any gap
+between the header end and last sample, and all-zero attention/relaxation in a
+cut window. For horizontal exports the timestamp rule remains **header Date minus
+Duration plus each Time-set offset**. Overlapping timestamps alone do not verify
+the device's recording clock or signal quality. Source timing diagnostics are
+stored in the result artifact's `metrics.eeg_source`.
 
 Choose the timezone of offset-free EEG timestamps (Beijing by default in V2).
 Phone timestamps use Unix milliseconds/UTC and the session timezone from
@@ -61,7 +74,7 @@ V2 paths isolate each session from V1 and other V2 sessions:
 baseline/{subject}-v2-{session-id}-baseline.csv
 experiment/{subject}-v2-{session-id}-experiment.csv
 raw/{subject}-v2-{session-id}/session.zip
-raw/{subject}-v2-{session-id}/eeg.csv
+raw/{subject}-v2-{session-id}/eeg.{csv|xlsx|xls}
 ```
 
 Reprocessing the same subject/session replaces that session's stored files,
