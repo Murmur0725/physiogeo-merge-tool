@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
-import decodedRoute from "../config/routes/chicago-ricky-2026-08-05-cd.json";
+import decodedRoute from "../config/routes/shenzhen-zhiyuan-cuigu-posttest.json";
 import { parseRouteConfig } from "../lib/parseRouteConfig";
 import { savePretestSession, saveReviewSession } from "../lib/reviewArchive";
 import {
@@ -13,6 +13,9 @@ import SegmentGalleryBar from "../components/review/SegmentGalleryBar.vue";
 import StreetViewLightbox from "../components/review/StreetViewLightbox.vue";
 import SurveyHost from "../components/surveys/SurveyHost.vue";
 import PretestSurvey from "../components/surveys/PretestSurvey.vue";
+import UmuxSurvey from "../components/surveys/UmuxSurvey.vue";
+import { isPosttestComplete } from "../lib/reviewPayload.js";
+import { scoreUmux, umuxAnsweredCount, umuxAnswersFromDraft } from "../lib/umux.js";
 import { withSegmentColors } from "../lib/segmentColors";
 
 const parsed = parseRouteConfig(decodedRoute);
@@ -45,6 +48,8 @@ const pretestDraft = ref({});
 /** confirmed payload keyed by segmentId: { answers, scores } */
 const confirmed = reactive({});
 const pretestConfirmed = ref(null);
+const posttestStep = ref("segments");
+const umuxDraft = ref({});
 
 const saveStatus = ref(null);
 const saving = ref(false);
@@ -69,12 +74,16 @@ const allSegmentsComplete = computed(
     segments.value.length > 0 &&
     segments.value.every((s) => Boolean(confirmed[s.id]))
 );
+const posttestComplete = computed(() => isPosttestComplete(segments.value, confirmed, umuxDraft.value));
+const umuxCount = computed(() => umuxAnsweredCount(umuxDraft.value));
 
 function clearSessionState() {
   Object.keys(drafts).forEach((k) => delete drafts[k]);
   Object.keys(confirmed).forEach((k) => delete confirmed[k]);
   pretestDraft.value = {};
   pretestConfirmed.value = null;
+  posttestStep.value = "segments";
+  umuxDraft.value = {};
   activeSegmentId.value = null;
   activePointId.value = null;
   lightboxOpen.value = false;
@@ -96,6 +105,7 @@ function onLeave() {
 }
 
 function onSelect(id) {
+  if (saving.value) return;
   activeSegmentId.value = id;
   activePointId.value = null;
   lightboxOpen.value = false;
@@ -130,6 +140,7 @@ watch(activeSegmentId, (id) => {
 
 /** Local confirm for current segment (post-test only). */
 function onSegmentConfirm(payload) {
+  if (saving.value) return;
   const segId = payload.segmentId || activeSegmentId.value;
   if (!segId) return;
   const answers = payload.answers || drafts[segId] || {};
@@ -142,12 +153,36 @@ function onSegmentConfirm(payload) {
   }
   confirmed[segId] = {
     answers: normalizeAnswers("posttest", answers),
-    scores: payload.scores || buildScores("posttest", answers)
+    scores: buildScores("posttest", answers)
   };
   saveStatus.value = {
     ok: true,
     message: `Confirmed “${activeSegment.value?.label || segId}” (${completedCount.value}/${segments.value.length})`
   };
+  if (allSegmentsComplete.value) {
+    posttestStep.value = "usability";
+    lightboxOpen.value = false;
+  }
+}
+
+function updateSegmentDraft(segmentId, answers) {
+  if (saving.value) return;
+  drafts[segmentId] = answers;
+  delete confirmed[segmentId];
+  saveStatus.value = null;
+}
+
+function updateUmuxDraft(answers) {
+  if (saving.value) return;
+  umuxDraft.value = answers;
+  saveStatus.value = null;
+}
+
+function openPlatformEvaluation() {
+  if (!allSegmentsComplete.value || saving.value) return;
+  posttestStep.value = "usability";
+  lightboxOpen.value = false;
+  saveStatus.value = null;
 }
 
 async function submitPretest(payload) {
@@ -204,7 +239,7 @@ async function submitPretest(payload) {
 }
 
 async function submitAll() {
-  if (!allSegmentsComplete.value || saving.value) return;
+  if (isPre.value || !posttestComplete.value || saving.value) return;
   saving.value = true;
   saveStatus.value = null;
   try {
@@ -220,14 +255,18 @@ async function submitAll() {
       routeName: routeMeta.value.name,
       instrumentId: "posttest",
       segments: segments.value,
-      responses
+      responses,
+      platformEvaluation: {
+        answers: umuxAnswersFromDraft(umuxDraft.value),
+        scores: scoreUmux(umuxDraft.value)
+      }
     });
     if (result.ok) {
       saveStatus.value = {
         ok: true,
         message: result.skipped
           ? result.reason
-          : `All ${result.responseCount} segment surveys submitted (session ${String(result.sessionId).slice(0, 8)}…)`
+          : `Post-test submitted: ${segments.value.length} route surveys and UX/UI evaluation (session ${String(result.sessionId).slice(0, 8)}…)`
       };
     } else {
       saveStatus.value = { ok: false, message: result.reason || "Submit failed" };
@@ -259,6 +298,7 @@ async function submitAll() {
               :class="{ post: !isPre }"
               :aria-pressed="!isPre"
               :aria-label="isPre ? 'Switch to Post-test' : 'Switch to Pre-test'"
+              :disabled="saving"
               @click="phase = isPre ? 'post' : 'pre'"
             >
               <span class="phase-knob" />
@@ -320,12 +360,13 @@ async function submitAll() {
           <button
             type="button"
             class="btn-submit-all"
-            :class="{ ready: allSegmentsComplete }"
-            :disabled="!allSegmentsComplete || saving"
-            @click="submitAll"
+            :class="{ ready: posttestStep === 'usability' ? posttestComplete : allSegmentsComplete }"
+            :disabled="saving || (posttestStep === 'usability' ? !posttestComplete : !allSegmentsComplete)"
+            :aria-label="posttestStep === 'usability' ? 'Submit post-test' : 'Continue to UX/UI evaluation'"
+            @click="posttestStep === 'usability' ? submitAll() : openPlatformEvaluation()"
           >
-            <span v-if="!allSegmentsComplete" class="button-progress">
-              <span>{{ completedCount }} / {{ segments.length }}</span>
+            <span v-if="posttestStep === 'segments' && !allSegmentsComplete" class="button-progress">
+              <span>{{ completedCount }} / {{ segments.length }} route surveys</span>
               <span class="button-dots" aria-hidden="true">
                 <i
                   v-for="seg in segments"
@@ -345,7 +386,8 @@ async function submitAll() {
                 />
               </span>
             </span>
-            <span v-else>{{ saving ? "Submitting…" : "Submit all segment surveys" }}</span>
+            <span v-else-if="posttestStep === 'segments'">Continue to UX/UI evaluation</span>
+            <span v-else>{{ saving ? "Submitting…" : posttestComplete ? "Submit post-test" : `UX/UI evaluation · ${umuxCount} / 4 answered` }}</span>
           </button>
         </label>
         <p
@@ -369,7 +411,26 @@ async function submitAll() {
       </div>
     </div>
 
-    <!-- Post-test: map + per-segment POMS-30 -->
+    <div v-else-if="posttestStep === 'usability'" class="usability-body">
+      <div class="usability-pane">
+        <div class="usability-nav">
+          <button type="button" class="back-to-segments" :disabled="saving" @click="posttestStep = 'segments'; saveStatus = null">
+            ← Review route answers
+          </button>
+          <span>{{ completedCount }} / {{ segments.length }} route surveys confirmed</span>
+        </div>
+        <UmuxSurvey :model-value="umuxDraft" :disabled="saving" @update:model-value="updateUmuxDraft" />
+        <div class="usability-submit">
+          <p>Submit once you have answered all four questions. Your route surveys and platform evaluation will be saved together.</p>
+          <button type="button" class="btn-submit-all" :class="{ ready: posttestComplete }"
+            :disabled="!posttestComplete || saving" @click="submitAll">
+            {{ saving ? "Submitting…" : "Submit post-test" }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Post-test: map + per-segment POMS-30, then one platform-wide UMUX -->
     <div v-else class="review-body">
       <div class="gallery-pane" aria-label="Street view gallery">
         <SegmentGalleryBar
@@ -396,12 +457,20 @@ async function submitAll() {
 
       <aside class="survey-pane" aria-label="Segment questionnaire">
         <div class="survey-pane-inner">
+          <nav class="route-survey-nav" aria-label="Route survey sections">
+            <button v-for="segment in segments" :key="segment.id" type="button"
+              :aria-pressed="activeSegmentId === segment.id" :disabled="saving"
+              :style="{ '--segment-color': segment.color }" @click="onSelect(segment.id)">
+              <span>{{ segment.label }}</span>
+              <small>{{ confirmed[segment.id] ? 'Confirmed ✓' : 'Route survey' }}</small>
+            </button>
+          </nav>
           <div v-if="!activeSegment" class="survey-empty">
             <span class="empty-step">Step 2</span>
             <p class="empty-title">No segment selected</p>
             <p class="empty-copy">
-              Click a path segment on the map to fill its mood survey. Confirm every segment, then
-              submit above.
+              Click a path segment on the map to fill its mood survey. Confirm both route surveys,
+              then complete the final four-question UX/UI evaluation before submitting.
             </p>
           </div>
           <SurveyHost
@@ -412,7 +481,8 @@ async function submitAll() {
               label: activeSegment.label,
               order: activeSegment.order
             }"
-            v-model="drafts[activeSegment.id]"
+            :model-value="drafts[activeSegment.id]"
+            @update:model-value="updateSegmentDraft(activeSegment.id, $event)"
             @submit="onSegmentConfirm"
           />
         </div>
@@ -420,7 +490,7 @@ async function submitAll() {
     </div>
 
     <StreetViewLightbox
-      v-if="!isPre"
+      v-if="!isPre && posttestStep === 'segments'"
       :open="lightboxOpen"
       :points="galleryPoints"
       :current-id="lightboxPointId"
@@ -747,6 +817,55 @@ async function submitAll() {
   flex: none;
   min-height: 0;
   overflow: visible;
+}
+
+.usability-body {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  background: #0e131a;
+  scrollbar-gutter: stable;
+}
+
+.usability-pane {
+  width: min(100%, 960px);
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 24px 28px 36px;
+  display: grid;
+  gap: 22px;
+}
+
+.usability-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.usability-nav > span { color: #86efac; font-size: 12px; }
+.back-to-segments {
+  padding: 7px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.back-to-segments:hover { color: var(--ink); }
+.usability-submit { display: grid; grid-template-columns: 1fr minmax(180px, 240px); align-items: center; gap: 24px; }
+.usability-submit p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.usability-submit .btn-submit-all { height: auto; min-height: 44px; }
+.route-survey-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; flex: none; margin-bottom: 18px; }
+.route-survey-nav button {
+  display: grid; gap: 5px; text-align: left; padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: 9px; background: rgba(255, 255, 255, .025); color: var(--ink); font: inherit;
+  font-size: 12px; cursor: pointer; min-width: 0;
+}
+.route-survey-nav button[aria-pressed="true"] { border-color: var(--segment-color); background: color-mix(in srgb, var(--segment-color) 8%, transparent); }
+.route-survey-nav small { color: var(--muted); font-size: 10px; }
+.route-survey-nav button:focus-visible, .back-to-segments:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+@media (max-width: 540px) {
+  .usability-pane { padding: 18px 16px 28px; }
+  .usability-nav { align-items: flex-start; }
+  .usability-nav > span { text-align: right; line-height: 1.5; }
+  .usability-submit { grid-template-columns: 1fr; gap: 12px; }
 }
 
 .review-body {

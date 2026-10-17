@@ -1,0 +1,174 @@
+{
+  "id": "shenzhen-zhiyuan-cuigu-posttest",
+  "name": "深圳 · 智园翠谷 Post-test",
+  "instrumentId": "posttest",
+  "streetViewSampleCount": 0,
+  "source": {
+    "sketch": "Baidu map screenshot, 2026-10-17",
+    "place": "智园翠谷公园 / 南山智园，学苑大道与麦地巷路",
+    "distanceMeters": 1137.4,
+    "note": "Loop starts and ends at the east junction, where the park path meets the 学苑大道 hook. 翠谷公园 runs from that junction around the park to 麦地巷路. 学苑大道 returns along the north road to the same east junction. Street-view photos are not shot yet."
+  },
+  "waypoints": [
+    {
+      "id": "w0",
+      "lng": 113.999627,
+      "lat": 22.597684,
+      "label": "东侧汇合 · Start"
+    },
+    {
+      "id": "w1",
+      "lng": 113.999702,
+      "lat": 22.597165,
+      "label": "公园东缘"
+    },
+    {
+      "id": "w2",
+      "lng": 113.999677,
+      "lat": 22.596992,
+      "label": "公园东缘"
+    },
+    {
+      "id": "w3",
+      "lng": 113.999577,
+      "lat": 22.596645,
+      "label": "公园东缘"
+    },
+    {
+      "id": "w4",
+      "lng": 113.999352,
+      "lat": 22.596299,
+      "label": "公园东缘"
+    },
+    {
+      "id": "w5",
+      "lng": 113.999027,
+      "lat": 22.595953,
+      "label": "公园东缘"
+    },
+    {
+      "id": "w6",
+      "lng": 113.998602,
+      "lat": 22.595606,
+      "label": "公园东缘"
+    },
+    {
+      "id": "w7",
+      "lng": 113.998101,
+      "lat": 22.59526,
+      "label": "公园南缘"
+    },
+    {
+      "id": "w8",
+      "lng": 113.997601,
+      "lat": 22.594914,
+      "label": "公园南缘"
+    },
+    {
+      "id": "w9",
+      "lng": 113.997026,
+      "lat": 22.594568,
+      "label": "南端转弯"
+    },
+    {
+      "id": "w10",
+      "lng": 113.996764,
+      "lat": 22.594914,
+      "label": "麦地巷路"
+    },
+    {
+      "id": "w11",
+      "lng": 113.996626,
+      "lat": 22.595376,
+      "label": "麦地巷路"
+    },
+    {
+      "id": "w12",
+      "lng": 113.996501,
+      "lat": 22.595837,
+      "label": "麦地巷路"
+    },
+    {
+      "id": "w13",
+      "lng": 113.996401,
+      "lat": 22.596299,
+      "label": "西侧汇合 · 学苑大道 / 麦地巷路"
+    },
+    {
+      "id": "w14",
+      "lng": 113.996601,
+      "lat": 22.596472,
+      "label": "学苑大道"
+    },
+    {
+      "id": "w15",
+      "lng": 113.997051,
+      "lat": 22.596818,
+      "label": "学苑大道"
+    },
+    {
+      "id": "w16",
+      "lng": 113.997501,
+      "lat": 22.597165,
+      "label": "学苑大道"
+    },
+    {
+      "id": "w17",
+      "lng": 113.997976,
+      "lat": 22.597511,
+      "label": "学苑大道"
+    },
+    {
+      "id": "w18",
+      "lng": 113.998477,
+      "lat": 22.597771,
+      "label": "学苑大道"
+    },
+    {
+      "id": "w19",
+      "lng": 113.999227,
+      "lat": 22.59803,
+      "label": "学苑大道"
+    },
+    {
+      "id": "w20",
+      "lng": 113.999602,
+      "lat": 22.598146,
+      "label": "学苑大道"
+    },
+    {
+      "id": "w21",
+      "lng": 113.999802,
+      "lat": 22.598088,
+      "label": "学苑大道东端"
+    },
+    {
+      "id": "w22",
+      "lng": 113.999727,
+      "lat": 22.597857,
+      "label": "东端回头"
+    },
+    {
+      "id": "w23",
+      "lng": 113.999627,
+      "lat": 22.597684,
+      "label": "东侧汇合 · End"
+    }
+  ],
+  "splits": [
+    {
+      "afterWaypointId": "w0",
+      "segmentLabel": "翠谷公园",
+      "color": "#4ade80"
+    },
+    {
+      "afterWaypointId": "w13",
+      "segmentLabel": "学苑大道",
+      "color": "#f87171"
+    }
+  ],
+  "segmentSamples": {
+    "翠谷公园": [],
+    "学苑大道": []
+  }
+}

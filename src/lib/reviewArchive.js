@@ -5,6 +5,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { safeFilePart } from "./merge";
+import { buildReviewPayload } from "./reviewPayload.js";
 
 const BUCKET = "merge-private";
 
@@ -181,16 +182,19 @@ export async function saveReviewSession({
   routeName,
   instrumentId,
   segments,
-  responses
+  responses,
+  platformEvaluation
 }) {
+  const sessionId = crypto.randomUUID();
+  let payload;
+  try {
+    payload = buildReviewPayload({ sessionId, instrumentId, segments, responses, platformEvaluation });
+  } catch (error) {
+    return { ok: false, reason: error.message };
+  }
   const client = getClient();
   if (!client) return notConfigured("Survey");
-
-  if (!responses?.length) {
-    return { ok: false, reason: "No surveys to submit" };
-  }
-
-  const sessionId = crypto.randomUUID();
+  const { segmentRows, streetRows, answerRows } = payload;
 
   const { error: sessionErr } = await client.from("review_sessions").insert({
     id: sessionId,
@@ -202,56 +206,12 @@ export async function saveReviewSession({
   });
   if (sessionErr) return { ok: false, reason: sessionErr.message };
 
-  const segmentRows = segments.map((s) => ({
-    id: crypto.randomUUID(),
-    session_id: sessionId,
-    segment_key: s.id,
-    label: s.label,
-    sort_order: s.order,
-    geometry: s.geometry,
-    start_waypoint_id: s.startWaypointId || null,
-    end_waypoint_id: s.endWaypointId || null
-  }));
-
   const { error: segErr } = await client.from("review_segments").insert(segmentRows);
   if (segErr) return { ok: false, reason: segErr.message, sessionId };
-
-  const keyToRowId = Object.fromEntries(
-    segmentRows.map((r) => [r.segment_key, r.id])
-  );
-
-  const streetRows = [];
-  segments.forEach((s) => {
-    const rowId = keyToRowId[s.id];
-    (s.samplePoints || []).forEach((p, i) => {
-      streetRows.push({
-        segment_id: rowId,
-        point_key: p.id,
-        lng: p.lng,
-        lat: p.lat,
-        progress: p.progress ?? null,
-        label: p.label || null,
-        mapillary_image_id: p.mapillaryImageId || null,
-        sort_order: i
-      });
-    });
-  });
 
   if (streetRows.length) {
     const { error: ptErr } = await client.from("segment_street_points").insert(streetRows);
     if (ptErr) return { ok: false, reason: ptErr.message, sessionId };
-  }
-
-  const answerRows = responses.map((r) => ({
-    session_id: sessionId,
-    segment_id: keyToRowId[r.segmentId],
-    instrument_id: instrumentId,
-    answers: r.answers,
-    scores: r.scores || null
-  }));
-
-  if (answerRows.some((r) => !r.segment_id)) {
-    return { ok: false, reason: "Segment and response mismatch", sessionId };
   }
 
   const { error: ansErr } = await client.from("survey_responses").insert(answerRows);
@@ -267,6 +227,7 @@ export async function saveReviewSession({
       routeConfigId,
       instrumentId,
       responses,
+      ...(payload.platformEvaluation ? { platformEvaluation: payload.platformEvaluation } : {}),
       savedAt: new Date().toISOString()
     },
     null,

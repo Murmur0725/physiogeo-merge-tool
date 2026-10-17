@@ -34,6 +34,16 @@ All parsing happens locally in the browser. GBK/ANSI-encoded CSV exports are
 decoded automatically. Archive uploads leave the browser only when Supabase
 env vars are configured (insert-only; anon cannot SELECT).
 
+## Post-test workflow
+
+On Review, switch to Post-test, answer and confirm each of the two route sections (POMS-30 plus the open-ended walking experience). Confirming the last section opens a final **UX/UI evaluation** with the four [UMUX statements](https://www.uxtesttools.com/tools/umux). Each question requires one answer from 1 (Strongly disagree) to 7 (Strongly agree); no answer is preselected. Final submission stays disabled until both route sections are confirmed and all four UMUX items are answered. Returning to edit a route answer requires confirming that section again, while retaining the UMUX draft.
+
+UMUX is recorded once for the web platform as a whole. The same post-test session contains two `posttest` responses and one `umux` response. To work with migration 005's required scope foreign key, the platform response has a separate `__platform_umux__` scope row with empty geometry; it is not a third geographic route section. Raw answers (`u1`–`u4`), instrument version, and scores are saved in `survey_responses` and in the session JSON snapshot's `platformEvaluation` object. Existing researcher survey exports include this response through its `instrument_id = umux`. No new database migration is required.
+
+Scoring follows [Finstad (2010), section 4.2](https://doi.org/10.1016/j.intcom.2010.04.004): `((u1 - 1) + (7 - u2) + (u3 - 1) + (7 - u4)) / 24 * 100`. Items 2 and 4 are reverse-scored; the 0–24 recoded total and 0–100 score (rounded to two decimals) are stored, while raw answers remain unchanged. This uses the original scoring method rather than the reference website's divide-by-28 example. Scores are not displayed to participants during the questionnaire.
+
+Run `npm test` for required-answer gates, score boundaries, archive payload checks, and pre-test compatibility. `npm run build` checks the production bundle. Browser verification also covers the two-section transition, blocking final submission with only three UMUX answers, enabling it with four, and invalidating confirmation after a route edit. Browser checks use disposable local drafts without submitting test responses to the research archive.
+
 ## Private archive
 
 1. Apply migrations in order:

@@ -93,9 +93,18 @@ function resolveSplitIndexes(waypoints, splits) {
   return [...indexes].sort((a, b) => a - b);
 }
 
-function labelForSplit(splits, endWaypointId, order) {
-  const hit = splits?.find((s) => s.afterWaypointId === endWaypointId);
-  return hit?.segmentLabel || `Segment ${order + 1}`;
+function splitAt(splits, waypointId) {
+  return splits?.find((s) => s.afterWaypointId === waypointId) || null;
+}
+
+/** Explicit sample list, including an empty list (photos not shot yet). Null if unset. */
+function explicitSamples(config, label, order) {
+  const samples = config.segmentSamples;
+  if (!samples || typeof samples !== "object") return null;
+  if (Object.prototype.hasOwnProperty.call(samples, label)) return samples[label];
+  const fallback = `Segment ${order + 1}`;
+  if (Object.prototype.hasOwnProperty.call(samples, fallback)) return samples[fallback];
+  return null;
 }
 
 /**
@@ -125,10 +134,10 @@ export function parseRouteConfig(config) {
     const start = splitIdx[s];
     const end = splitIdx[s + 1];
     const geometry = waypoints.slice(start, end + 1).map((w) => ({ lng: w.lng, lat: w.lat }));
-    const explicit =
-      config.segmentSamples?.[labelForSplit(config.splits, waypoints[start].id, s)] ||
-      config.segmentSamples?.[`Segment ${s + 1}`];
-    const samples = explicit?.length
+    const split = splitAt(config.splits, waypoints[start].id);
+    const label = split?.segmentLabel || `Segment ${s + 1}`;
+    const explicit = explicitSamples(config, label, s);
+    const samples = Array.isArray(explicit)
       ? explicit.map((p, i) => ({
           id: p.id || `p${i}`,
           lng: Number(p.lng),
@@ -149,7 +158,8 @@ export function parseRouteConfig(config) {
 
     segments.push({
       id: `seg-${s}`,
-      label: labelForSplit(config.splits, waypoints[start].id, s),
+      label,
+      color: split?.color || null,
       order: s,
       startWaypointId: waypoints[start].id,
       endWaypointId: waypoints[end].id,

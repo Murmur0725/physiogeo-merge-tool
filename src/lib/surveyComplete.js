@@ -4,12 +4,12 @@ import {
   gad7AnswersFromDraft,
   isGad7Complete,
   scoreGad7
-} from "./gad7";
+} from "./gad7.js";
 import {
   isPoms30Complete,
   poms30AnswersFromDraft,
   scorePoms30
-} from "./poms30";
+} from "./poms30.js";
 
 const PSS_ITEMS = 10;
 const PSS_REVERSE = new Set([3, 4, 6, 7]);
