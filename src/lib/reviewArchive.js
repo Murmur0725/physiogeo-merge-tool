@@ -183,12 +183,13 @@ export async function saveReviewSession({
   instrumentId,
   segments,
   responses,
-  platformEvaluation
+  platformEvaluation,
+  walkingOrder
 }) {
   const sessionId = crypto.randomUUID();
   let payload;
   try {
-    payload = buildReviewPayload({ sessionId, instrumentId, segments, responses, platformEvaluation });
+    payload = buildReviewPayload({ sessionId, instrumentId, segments, responses, platformEvaluation, walkingOrder });
   } catch (error) {
     return { ok: false, reason: error.message };
   }
@@ -227,6 +228,7 @@ export async function saveReviewSession({
       routeConfigId,
       instrumentId,
       responses,
+      ...payload.sessionContext,
       ...(payload.platformEvaluation ? { platformEvaluation: payload.platformEvaluation } : {}),
       savedAt: new Date().toISOString()
     },
@@ -264,6 +266,7 @@ export async function saveReviewSession({
 export async function savePretestSession({
   subjectId,
   subjectName,
+  walkingOrder,
   answers,
   scores
 }) {
@@ -280,6 +283,7 @@ export async function savePretestSession({
   return saveReviewSession({
     subjectId,
     subjectName,
+    walkingOrder,
     routeConfigId: "pretest",
     routeName: "Pre-test (no route)",
     instrumentId: "pretest",

@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { isUmuxComplete, scoreUmux, umuxAnswersFromDraft, umuxAnsweredCount } from "../src/lib/umux.js";
 import { buildReviewPayload, isPosttestComplete } from "../src/lib/reviewPayload.js";
+import { WALKING_ORDER_OPTIONS } from "../src/lib/walkingOrder.js";
 
 const validUmux = { u1: 6, u2: 2, u3: 5, u4: 3 };
 const moodAnswers = { ...Object.fromEntries(Array.from({ length: 30 }, (_, index) => [`m${index}`, 2])), openFeeling: "A calm walk." };
@@ -87,4 +88,34 @@ test("Pre-test submissions retain their existing archive format without requirin
   assert.equal(payload.answerRows[0].instrument_id, "pretest");
   assert.deepEqual(payload.answerRows[0].answers, { age: "22" });
   assert.equal(payload.platformEvaluation, null);
+});
+
+test("Both walking orders are archived with every response and the JSON context in both phases", () => {
+  assert.equal(WALKING_ORDER_OPTIONS.length, 2);
+  for (const option of WALKING_ORDER_OPTIONS) {
+    const post = buildReviewPayload({ ...submission(), walkingOrder: option.value });
+    const expected = { walkingOrder: option.value, walkingOrderLabel: option.label };
+    assert.deepEqual(post.sessionContext, expected);
+    assert.equal(post.answerRows.length, 3);
+    for (const row of post.answerRows) {
+      assert.equal(row.answers.walkingOrder, option.value);
+      assert.equal(row.answers.walkingOrderLabel, option.label);
+    }
+    assert.deepEqual(post.platformEvaluation.scores, scoreUmux(validUmux));
+    const pre = buildReviewPayload({
+      sessionId: "pre-session", instrumentId: "pretest", walkingOrder: option.value,
+      segments: [{ id: "pretest", label: "Pre-test", order: 0, geometry: [] }],
+      responses: [{ segmentId: "pretest", answers: { age: "22" } }]
+    });
+    assert.deepEqual(pre.sessionContext, expected);
+    assert.deepEqual(pre.answerRows[0].answers, { age: "22", ...expected });
+  }
+});
+
+test("Unknown walking orders are rejected before preparing database rows", () => {
+  let generated = 0;
+  for (const value of ["", "other", null, "clockwise", 1]) {
+    assert.throws(() => buildReviewPayload({ ...submission(), walkingOrder: value }, () => `row-${generated++}`), /walking order/);
+  }
+  assert.equal(generated, 0);
 });

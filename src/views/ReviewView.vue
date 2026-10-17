@@ -17,12 +17,14 @@ import UmuxSurvey from "../components/surveys/UmuxSurvey.vue";
 import { isPosttestComplete } from "../lib/reviewPayload.js";
 import { scoreUmux, umuxAnsweredCount, umuxAnswersFromDraft } from "../lib/umux.js";
 import { withSegmentColors } from "../lib/segmentColors";
+import { WALKING_ORDER_OPTIONS } from "../lib/walkingOrder.js";
 
 const parsed = parseRouteConfig(decodedRoute);
 
 /** @type {import('vue').Ref<'pre'|'post'>} */
 const phase = ref("pre");
 const subjectId = ref("");
+const walkingOrder = ref(WALKING_ORDER_OPTIONS[0].value);
 const subjectName = ref("");
 const subjectAge = ref("");
 const subjectGender = ref("");
@@ -218,6 +220,7 @@ async function submitPretest(payload) {
     const result = await savePretestSession({
       subjectId: subjectId.value.trim() || "anonymous",
       subjectName: subjectName.value.trim() || "anonymous",
+      walkingOrder: walkingOrder.value,
       answers: normalized,
       scores
     });
@@ -251,6 +254,7 @@ async function submitAll() {
     const result = await saveReviewSession({
       subjectId: subjectId.value.trim() || "anonymous",
       subjectName: subjectName.value.trim() || "anonymous",
+      walkingOrder: walkingOrder.value,
       routeConfigId: routeMeta.value.id,
       routeName: routeMeta.value.name,
       instrumentId: "posttest",
@@ -310,9 +314,11 @@ async function submitAll() {
           Name
           <input v-model="subjectName" type="text" placeholder="e.g. Alex" autocomplete="off" />
         </label>
-        <label>
-          Equipment ID
-          <input v-model="subjectId" type="text" placeholder="e.g. 001" autocomplete="off" />
+        <label class="walking-order-field">
+          行走顺序
+          <select v-model="walkingOrder" :disabled="saving">
+            <option v-for="option in WALKING_ORDER_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
         </label>
         <template v-if="isPre">
           <label>
@@ -549,7 +555,7 @@ async function submitAll() {
 
 .toolbar-fields {
   display: grid;
-  grid-template-columns: minmax(132px, 0.9fr) repeat(2, minmax(110px, 1fr));
+  grid-template-columns: minmax(132px, 0.9fr) minmax(110px, 1fr) minmax(220px, 1.4fr);
   gap: 12px 14px;
   align-items: end;
   min-width: 0;
@@ -557,7 +563,7 @@ async function submitAll() {
 
 .toolbar-fields.is-pre {
   grid-column: 2 / -1;
-  grid-template-columns: minmax(132px, 0.9fr) repeat(6, minmax(88px, 1fr));
+  grid-template-columns: minmax(132px, 0.9fr) minmax(88px, 1fr) minmax(220px, 1.5fr) repeat(4, minmax(72px, 1fr));
 }
 
 .phase-pre .archive-block {
@@ -971,6 +977,10 @@ async function submitAll() {
     grid-template-columns: minmax(120px, 0.85fr) repeat(3, minmax(0, 1fr));
   }
 
+  .toolbar-fields.is-pre .walking-order-field {
+    grid-column: span 2;
+  }
+
   .archive-block,
   .phase-pre .archive-block {
     grid-column: 1 / -1;
@@ -1002,6 +1012,10 @@ async function submitAll() {
   .toolbar-fields.is-pre {
     grid-column: auto;
     grid-template-columns: 1fr;
+  }
+
+  .toolbar-fields.is-pre .walking-order-field {
+    grid-column: auto;
   }
 
   .archive-block,

@@ -1,5 +1,6 @@
 import { isInstrumentComplete } from "./surveyComplete.js";
 import { isUmuxComplete, scoreUmux, umuxAnswersFromDraft, UMUX_VERSION } from "./umux.js";
+import { walkingOrderMetadata } from "./walkingOrder.js";
 
 export function isPosttestComplete(segments, confirmed, platformAnswers) {
   return segments.length > 0 && segments.every((segment) =>
@@ -7,7 +8,9 @@ export function isPosttestComplete(segments, confirmed, platformAnswers) {
 }
 
 /** Build and validate the entire submission before the first database write. */
-export function buildReviewPayload({ sessionId, instrumentId, segments, responses, platformEvaluation }, makeId = () => crypto.randomUUID()) {
+export function buildReviewPayload({ sessionId, instrumentId, segments, responses, platformEvaluation, walkingOrder }, makeId = () => crypto.randomUUID()) {
+  // Older callers remain supported; new Review submissions include an explicit experimental condition.
+  const sessionContext = walkingOrder === undefined ? {} : walkingOrderMetadata(walkingOrder);
   const keys = new Set(segments.map((segment) => segment.id));
   if (!responses?.length || new Set(responses.map((response) => response.segmentId)).size !== responses.length ||
       responses.some((response) => !keys.has(response.segmentId))) {
@@ -44,7 +47,7 @@ export function buildReviewPayload({ sessionId, instrumentId, segments, response
   })));
   const answerRows = responses.map((response) => ({
     session_id: sessionId, segment_id: keyToRowId[response.segmentId], instrument_id: instrumentId,
-    answers: response.answers, scores: response.scores || null
+    answers: { ...response.answers, ...sessionContext }, scores: response.scores || null
   }));
 
   if (evaluation) {
@@ -58,8 +61,8 @@ export function buildReviewPayload({ sessionId, instrumentId, segments, response
     });
     answerRows.push({
       session_id: sessionId, segment_id: scopeId, instrument_id: "umux",
-      answers: { ...evaluation.answers, scope: evaluation.scope, version: evaluation.version }, scores: evaluation.scores
+      answers: { ...evaluation.answers, scope: evaluation.scope, version: evaluation.version, ...sessionContext }, scores: evaluation.scores
     });
   }
-  return { segmentRows, streetRows, answerRows, platformEvaluation: evaluation };
+  return { segmentRows, streetRows, answerRows, platformEvaluation: evaluation, sessionContext };
 }

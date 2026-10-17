@@ -36,6 +36,8 @@ env vars are configured (insert-only; anon cannot SELECT).
 
 ## Post-test workflow
 
+Review setup uses a two-option **行走顺序** dropdown in place of Equipment ID: **顺时针先商业后绿地** (`clockwise_commercial_first`, default) or **逆时针先绿地后商业** (`counterclockwise_green_first`). The selection persists when switching between Pre-test and Post-test. Both phases save the condition as `walkingOrder` plus `walkingOrderLabel` in each archived response and at the top of the JSON snapshot; it is kept separate from participant identity. No schema migration is needed.
+
 On Review, switch to Post-test, answer and confirm each of the two route sections (POMS-30 plus the open-ended walking experience). Confirming the last section opens a final **UX/UI evaluation** with the four [UMUX statements](https://www.uxtesttools.com/tools/umux). Each question requires one answer from 1 (Strongly disagree) to 7 (Strongly agree); no answer is preselected. Final submission stays disabled until both route sections are confirmed and all four UMUX items are answered. Returning to edit a route answer requires confirming that section again, while retaining the UMUX draft.
 
 UMUX is recorded once for the web platform as a whole. The same post-test session contains two `posttest` responses and one `umux` response. To work with migration 005's required scope foreign key, the platform response has a separate `__platform_umux__` scope row with empty geometry; it is not a third geographic route section. Raw answers (`u1`–`u4`), instrument version, and scores are saved in `survey_responses` and in the session JSON snapshot's `platformEvaluation` object. Existing researcher survey exports include this response through its `instrument_id = umux`. No new database migration is required.
