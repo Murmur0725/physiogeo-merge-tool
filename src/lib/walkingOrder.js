@@ -1,6 +1,6 @@
 export const WALKING_ORDER_OPTIONS = [
-  { value: "clockwise_commercial_first", label: "顺时针先商业后绿地" },
-  { value: "counterclockwise_green_first", label: "逆时针先绿地后商业" }
+  { value: "clockwise_commercial_first", label: "Clockwise: commercial → green" },
+  { value: "counterclockwise_green_first", label: "Counterclockwise: green → commercial" }
 ];
 
 export function walkingOrderMetadata(value) {

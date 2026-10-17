@@ -315,7 +315,7 @@ async function submitAll() {
           <input v-model="subjectName" type="text" placeholder="e.g. Alex" autocomplete="off" />
         </label>
         <label class="walking-order-field">
-          行走顺序
+          Walk order
           <select v-model="walkingOrder" :disabled="saving">
             <option v-for="option in WALKING_ORDER_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>

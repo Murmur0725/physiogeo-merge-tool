@@ -419,6 +419,7 @@ function initMap() {
   map = new mapboxgl.Map({
     container: mapEl.value,
     style: "mapbox://styles/mapbox/dark-v11",
+    language: "en",
     center: first ? [first.lng, first.lat] : [-87.625, 41.875],
     zoom: 14,
     antialias: true,

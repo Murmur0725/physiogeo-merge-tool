@@ -67,7 +67,7 @@ watch(
       <span class="gallery-kicker">Street views</span>
       <span v-if="!empty && segmentLabel" class="gallery-seg">{{ segmentLabel }}</span>
       <span v-if="empty" class="gallery-hint">Select a path segment on the map</span>
-      <span v-else-if="!items.length" class="gallery-hint">街景待拍摄，补拍后再投影</span>
+      <span v-else-if="!items.length" class="gallery-hint">Photos coming soon</span>
     </div>
     <div v-if="empty || !items.length" class="gallery-empty">
       <span class="ghost-slot" /><span class="ghost-slot" /><span class="ghost-slot" />
