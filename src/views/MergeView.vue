@@ -8,11 +8,15 @@ import {
   EEG_TIMEZONE_OPTIONS
 } from "../lib/merge";
 import { archiveSession, isArchiveConfigured } from "../lib/archive";
+import { runMergeV2 } from "../lib/mergeV2.js";
+
+const props = defineProps({ version: { type: String, default: "v1" } });
+const isV2 = computed(() => props.version === "v2");
 
 const subjectId = ref("");
 const subjectName = ref("");
 /** EEG Date/日期 clock: chicago = convert Asia/Shanghai → America/Chicago; beijing = as-is */
-const eegTimezone = ref("chicago");
+const eegTimezone = ref(isV2.value ? "beijing" : "chicago");
 
 /** marks = C/D from Mark CSV; manual = typed start/end timestamps */
 const windowMode = ref("marks");
@@ -31,13 +35,15 @@ const fileSpecs = [
   { key: "hr", label: "Heart Rate CSV", accept: ".csv,.CSV", color: "#f87171", hint: "Optional · Date, Start time, Time, HR (bpm)" }
 ];
 
-const files = reactive({ marks: null, rr: null, eeg: null, gpx: null, hr: null });
+const files = reactive({ marks: null, rr: null, eeg: null, gpx: null, hr: null, zip: null });
 
 const running = ref(false);
 const rows = ref([]);
 const csv = ref("");
 const logs = ref([
-  "Ready. Choose Mark CSV or Manual time. CD = experiment download; AB = baseline archive. Sensors optional."
+  isV2.value
+    ? "V2 ready. Upload the phone session ZIP and EEG CSV. A/B = baseline; C/D = experiment. Both windows are required."
+    : "V1 ready. Choose Mark CSV or Manual time. CD = experiment download; AB = baseline archive. Sensors optional."
 ]);
 const metrics = reactive({ rows: "--", gps: "--", rr: "--", eeg: "--", hr: "--" });
 const rangeText = ref("");
@@ -46,6 +52,10 @@ const baselineStatus = ref("");
 const PREVIEW_LIMIT = 80;
 
 const visibleFileSpecs = computed(() => {
+  if (isV2.value) return [
+    { key: "zip", label: "Phone session ZIP", accept: ".zip", color: "#22d3ee", hint: "Required · the complete APP export (13 files)" },
+    { key: "eeg", label: "EEG CSV", accept: ".csv", color: "#a78bfa", hint: "Required · timestamped rows or Date / Duration / Time-set format" }
+  ];
   if (windowMode.value === "manual") {
     return fileSpecs.map((spec) =>
       spec.key === "marks"
@@ -60,16 +70,21 @@ const visibleFileSpecs = computed(() => {
 
 const canMerge = computed(() => {
   if (subjectId.value.trim() === "" || subjectName.value.trim() === "") return false;
+  if (isV2.value && (!files.zip || !files.eeg)) return false;
   if (windowMode.value === "manual") {
+    if (isV2.value && (!manualBaselineStart.value.trim() || !manualBaselineEnd.value.trim())) return false;
     return manualStart.value.trim() !== "" && manualEnd.value.trim() !== "";
   }
-  return Boolean(files.marks);
+  return isV2.value || Boolean(files.marks);
 });
 
 const gateHint = computed(() => {
   if (subjectId.value.trim() === "" || subjectName.value.trim() === "") {
     return "Enter equipment ID and name.";
   }
+  if (isV2.value) return windowMode.value === "manual"
+    ? "Upload ZIP + EEG CSV and enter both baseline (A/B) and experiment (C/D) windows."
+    : "Upload ZIP + EEG CSV. The ZIP must contain A/B baseline and C/D experiment marks.";
   if (windowMode.value === "manual") {
     return "Enter C (start) and D (end) for the experiment window. A/B baseline is optional.";
   }
@@ -104,6 +119,7 @@ async function generate() {
   try {
     const id = subjectId.value.trim();
     const name = subjectName.value.trim();
+    const inputFiles = { ...files };
     log(`Equipment: ${id} ${name}`);
     log(
       `Route timezone: ${EEG_TIMEZONE_OPTIONS[eegTimezone.value]?.label || eegTimezone.value}`
@@ -135,7 +151,10 @@ async function generate() {
       log("Window mode: Mark CSV (C→D experiment; A→B baseline if present).");
     }
 
-    const { experiment, baseline } = await runMergeWithBaseline(files, log, mergeOptions);
+    const result = isV2.value
+      ? await runMergeV2(inputFiles, log, mergeOptions)
+      : await runMergeWithBaseline(inputFiles, log, mergeOptions);
+    const { experiment, baseline } = result;
 
     // Only CD experiment merge is held for website preview/download.
     rows.value = experiment.rows;
@@ -149,7 +168,8 @@ async function generate() {
       subjectName: name,
       experiment,
       baseline,
-      files
+      files: inputFiles,
+      identity: isV2.value ? { version: "v2", sessionId: result.metadata.id } : { version: "v1" }
     });
     baselineStatus.value = archived.reason;
     log(archived.ok ? `OK: ${archived.reason}` : `Archive: ${archived.reason}`);
@@ -187,6 +207,8 @@ function download() {
   <div class="merge-layout">
     <aside class="side">
       <section class="card">
+        <h2>{{ isV2 ? "Merge V2" : "Merge V1" }}</h2>
+        <p class="hint">{{ isV2 ? "Phone ZIP + EEG CSV. Baseline and experiment share the existing private archive." : "Original five-file workflow: Mark, RR, EEG Excel, GPX and heart rate." }}</p>
         <h2><span class="dot" style="background: var(--rainbow)"></span>Equipment</h2>
         <label class="field">
           <span>Equipment ID</span>
@@ -197,7 +219,7 @@ function download() {
           <input v-model="subjectName" type="text" placeholder="e.g. Alex" autocomplete="off" />
         </label>
         <label class="field">
-          <span>Route timezone</span>
+          <span>{{ isV2 ? "EEG timestamp timezone" : "Route timezone" }}</span>
           <select v-model="eegTimezone">
             <option value="chicago">Chicago</option>
             <option value="beijing">Beijing</option>
@@ -214,7 +236,7 @@ function download() {
             :class="{ active: windowMode === 'marks' }"
             @click="setWindowMode('marks')"
           >
-            Mark CSV
+            {{ isV2 ? "ZIP event marks" : "Mark CSV" }}
           </button>
           <button
             type="button"
@@ -247,7 +269,7 @@ function download() {
             />
           </label>
 
-          <p class="manual-section-label">AB · Baseline (archive, optional)</p>
+          <p class="manual-section-label">AB · Baseline (archive{{ isV2 ? ", required" : ", optional" }})</p>
           <label class="field">
             <span>A · Baseline start</span>
             <input
@@ -267,11 +289,11 @@ function download() {
             />
           </label>
           <p class="hint">
-            Format: YYYY-MM-DD HH:mm:ss. CD is required for download; A/B both filled enables baseline archive. Mark CSV optional for event notes.
+            {{ isV2 ? "Enter all four timestamps in the phone session timezone (metadata.json). EEG timezone is set separately above." : "Format: YYYY-MM-DD HH:mm:ss. CD is required for download; A/B both filled enables baseline archive. Mark CSV optional for event notes." }}
           </p>
         </div>
         <p v-else class="hint">
-          Uses C→D for experiment and A→B for baseline from Mark CSV. Switch to Manual time to type CD / AB windows.
+          Uses C→D for experiment and A→B for baseline from {{ isV2 ? "marks.csv inside the ZIP" : "Mark CSV" }}. Switch to Manual time to type CD / AB windows.
         </p>
       </section>
 
@@ -285,7 +307,7 @@ function download() {
           @select="(f) => (files[spec.key] = f)"
         />
         <p class="hint">
-          Missing RR / EEG / GPX / HR leave blank columns. CD download stays local; available files archive privately.
+          {{ isV2 ? "Output: one row per second, same columns as V1. Valid RR values are averaged within each second. Missing physiology stays blank; GPS uses the latest usable fix, up to 15 seconds old. Original ZIP and EEG CSV archive privately with the results." : "Missing RR / EEG / GPX / HR leave blank columns. CD download stays local; available files archive privately." }}
         </p>
       </section>
 

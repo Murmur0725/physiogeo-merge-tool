@@ -8,6 +8,71 @@ Vue 3 + Vite, deployed on GitHub Pages.
 
 **Pages:** Merge (`/`) · Review (`/review`) · Demo (`/demo`) — biometric 3D pillars with street views and spectrograms from `public/biometric-demo/`.
 
+## Published merge versions
+
+- **V1 — five files:** https://murmur0725.github.io/physiogeo-merge-tool/v1/
+  The original Mark CSV, RR CSV, EEG Excel, GPX and heart-rate CSV workflow.
+  The original root URL remains a V1 alias. Existing timezone, RR forward-fill
+  and GPS interpolation behavior is preserved.
+- **V2 — phone ZIP + EEG CSV:** https://murmur0725.github.io/physiogeo-merge-tool/v2/
+  Upload one complete Somatic City phone session ZIP and one EEG CSV.
+  The ZIP can contain an enclosing folder, but must contain exactly one each of
+  `metadata.json`, `marks.csv`, `heart_rate_raw.csv`, `rr_raw.csv`, `gps_raw.csv`.
+  Keep the complete 13-file export: the original ZIP is archived intact.
+  Compressed and total uncompressed ZIP size are each limited to 100 MiB.
+
+V2 accepts EEG CSV in either of these layouts:
+
+1. One sample per row: a `time`, `timestamp`, `datetime`, `timestamp_utc`,
+   `received_at_utc`, `unix_ms`, `received_unix_ms` or `timestamp_unix_ms`
+   column, plus EEG columns using the existing output names (`attention`,
+   `relaxation`, `delta`, etc.) or the original bilingual EEG labels.
+   Unix columns are milliseconds. ISO timestamps with a UTC offset are absolute.
+2. The original horizontal EEG layout exported as CSV: `Date/日期`,
+   `时长(Duration)/秒(ss)`, `Time-set/时间集合`, and EEG feature rows.
+   Comma-delimited series must be quoted as standard CSV fields.
+
+Choose the timezone of offset-free EEG timestamps (Beijing by default in V2).
+Phone timestamps use Unix milliseconds/UTC and the session timezone from
+`metadata.json`; they do not depend on the importing computer's timezone.
+Recording clocks still need to be synchronized. Missing/invalid windows or EEG
+with no overlap are reported before upload. Ambiguous/nonexistent DST wall times
+require an explicit UTC offset.
+
+Both V2 windows are required: A→B baseline and C→D experiment, or all four
+manual timestamps in the phone session timezone. Output uses the same 22-column
+schema as V1, including `familarity` and `Mark`. Windows include their start and
+end second, matching the legacy CSV layout. Each row represents that whole
+second, rather than a precisely simultaneous measurement. Multiple valid
+physiological samples in one second are averaged. RR requires the source `valid`
+flag and a value of 300–2000 ms. Zero heart-rate readings are excluded. Missing
+physiological samples stay blank. GPS uses the latest received usable fix within
+the second, with accuracy 0–50 m and sample age at the end of the second ≤15 s.
+GPS is not interpolated. This aligned CSV is for combined analysis; beat-level
+HRV analysis should use `rr_raw.csv` from the preserved ZIP.
+
+Both versions use the **same Supabase project**, `merge_artifacts` table and
+private `merge-private` bucket, with the existing RLS. No new migration is needed
+when migrations 001–004 have already been applied. V2 result metadata includes
+`version`, `session_id`, timezones, cut boundaries and alignment rules.
+V2 paths isolate each session from V1 and other V2 sessions:
+
+```text
+baseline/{subject}-v2-{session-id}-baseline.csv
+experiment/{subject}-v2-{session-id}-experiment.csv
+raw/{subject}-v2-{session-id}/session.zip
+raw/{subject}-v2-{session-id}/eeg.csv
+```
+
+Reprocessing the same subject/session replaces that session's stored files,
+using the existing private upload policy. Researchers can retrieve artifacts
+using `fetch_baseline.py`; use artifact `metrics.session_id` to distinguish
+sessions when comparing runs. Existing per-subject exports select the latest
+baseline and experiment; use the stored session paths when retrieving individual
+V2 recordings.
+Only the experiment CSV is offered as a local website download. Baseline and
+raw uploads remain private. An incomplete archive is reported as a partial save.
+
 ## Usage
 
 1. Fill in 编号 (Equipment ID) and 姓名 (Name).

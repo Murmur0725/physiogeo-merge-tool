@@ -12,16 +12,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { safeFilePart } from "./merge";
+import { archiveStorageKey, rawSlots } from "./archivePaths.js";
 
 const BUCKET = "merge-private";
-
-const RAW_SLOTS = [
-  { key: "marks", label: "marks", fallbackExt: ".csv" },
-  { key: "rr", label: "rr", fallbackExt: ".csv" },
-  { key: "eeg", label: "eeg", fallbackExt: ".xlsx" },
-  { key: "gpx", label: "gpx", fallbackExt: ".gpx" },
-  { key: "hr", label: "hr", fallbackExt: ".csv" }
-];
 
 function getClient() {
   const url = import.meta.env.VITE_SUPABASE_URL;
@@ -51,6 +44,7 @@ function notConfigured(what) {
 
 function contentTypeForName(name) {
   const lower = String(name || "").toLowerCase();
+  if (lower.endsWith(".zip")) return "application/zip";
   if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
     return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   }
@@ -147,12 +141,13 @@ export async function archiveBaseline({
   csv,
   metrics,
   range,
-  windowLabel = "baseline AB"
+  windowLabel = "baseline AB",
+  identity = {}
 }) {
   const client = getClient();
   if (!client) return notConfigured("baseline ");
 
-  const key = subjectStorageKey(subjectId, subjectName);
+  const key = archiveStorageKey(subjectId, subjectName, identity);
   const result = await uploadAndRegister(client, {
     subjectId,
     subjectName,
@@ -181,12 +176,13 @@ export async function archiveExperiment({
   csv,
   metrics,
   range,
-  windowLabel = "experiment CD"
+  windowLabel = "experiment CD",
+  identity = {}
 }) {
   const client = getClient();
   if (!client) return notConfigured("CD merge ");
 
-  const key = subjectStorageKey(subjectId, subjectName);
+  const key = archiveStorageKey(subjectId, subjectName, identity);
   const result = await uploadAndRegister(client, {
     subjectId,
     subjectName,
@@ -209,14 +205,15 @@ export async function archiveExperiment({
  * Upload the five raw input files:
  *   raw/{编号}-{姓名}/marks|rr|eeg|gpx|hr.{ext}
  */
-export async function archiveRawFiles({ subjectId, subjectName, files }) {
+export async function archiveRawFiles({ subjectId, subjectName, files, identity = {} }) {
   const client = getClient();
   if (!client) return notConfigured("Raw files ");
 
-  const key = subjectStorageKey(subjectId, subjectName);
+  const key = archiveStorageKey(subjectId, subjectName, identity);
   const results = [];
+  const slots = rawSlots(identity);
 
-  for (const slot of RAW_SLOTS) {
+  for (const slot of slots) {
     const file = files?.[slot.key];
     if (!file) {
       results.push({ ok: false, skipped: true, key: slot.key, reason: `Missing raw file: ${slot.label}` });
@@ -231,7 +228,7 @@ export async function archiveRawFiles({ subjectId, subjectName, files }) {
       body: file,
       contentType: contentTypeForName(file.name),
       windowLabel: slot.label,
-      metrics: { bytes: file.size, original_name: file.name, slot: slot.key },
+      metrics: { bytes: file.size, original_name: file.name, slot: slot.key, version: identity.version || "v1", session_id: identity.sessionId || null },
       range: null
     });
     results.push({ ...result, key: slot.key, label: slot.label });
@@ -245,7 +242,7 @@ export async function archiveRawFiles({ subjectId, subjectName, files }) {
     results,
     reason:
       fail.length === 0
-        ? `Raw files saved to private archive raw/${key}/ (${okCount}/5; not downloadable from the site)`
+        ? `Raw files saved to private archive raw/${key}/ (${okCount}/${slots.length}; not downloadable from the site)`
         : `Raw archive partially failed: ${fail.map((f) => f.reason).join(" | ")}`
   };
 }
@@ -259,7 +256,8 @@ export async function archiveSession({
   subjectName,
   experiment,
   baseline,
-  files
+  files,
+  identity = {}
 }) {
   if (!isArchiveConfigured()) {
     return {
@@ -277,9 +275,10 @@ export async function archiveSession({
         subjectId,
         subjectName,
         csv: experiment.csv,
-        metrics: experiment.metrics,
+        metrics: { ...experiment.metrics, version: identity.version || "v1", session_id: identity.sessionId || null },
         range: experiment.range,
-        windowLabel: experiment.label
+        windowLabel: experiment.label,
+        identity
       })
     : { ok: false, skipped: true, reason: "No CD merge" };
 
@@ -288,28 +287,30 @@ export async function archiveSession({
         subjectId,
         subjectName,
         csv: baseline.csv,
-        metrics: baseline.metrics,
+        metrics: { ...baseline.metrics, version: identity.version || "v1", session_id: identity.sessionId || null },
         range: baseline.range,
-        windowLabel: baseline.label
+        windowLabel: baseline.label,
+        identity
       })
     : { ok: false, skipped: true, reason: "No AB baseline (Mark CSV missing A/B)" };
 
-  const rawResult = await archiveRawFiles({ subjectId, subjectName, files });
+  const rawResult = await archiveRawFiles({ subjectId, subjectName, files, identity });
 
   const parts = [
     experimentResult.ok ? "CD" : null,
     baselineResult.ok ? "AB" : null,
     rawResult.ok ? "raw" : null
   ].filter(Boolean);
+  const complete = experimentResult.ok && (!baseline || baselineResult.ok) && rawResult.ok;
 
   return {
-    ok: experimentResult.ok || baselineResult.ok || rawResult.ok,
+    ok: complete,
     skipped: false,
     experiment: experimentResult,
     baseline: baselineResult,
     raw: rawResult,
     reason: parts.length
-      ? `Private archive updated: ${parts.join(" + ")} (not downloadable from the site; CD still available locally)`
+      ? `${complete ? "Private archive updated" : "Archive only partially saved"}: ${parts.join(" + ")} (not downloadable from the site; CD still available locally)`
       : `Archive failed: ${[experimentResult.reason, baselineResult.reason, rawResult.reason].filter(Boolean).join(" | ")}`
   };
 }

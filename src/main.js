@@ -10,6 +10,8 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: "/", name: "merge", component: MergeView },
+    { path: "/v1", name: "merge-v1", component: MergeView },
+    { path: "/v2", name: "merge-v2", component: MergeView, props: { version: "v2" } },
     { path: "/review", name: "review", component: ReviewView },
     { path: "/demo", name: "demo", component: BiometricDemoView },
     { path: "/:pathMatch(.*)*", redirect: "/" }

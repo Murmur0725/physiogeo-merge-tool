@@ -15,8 +15,11 @@ const route = useRoute();
       </div>
     </div>
     <nav class="app-nav" aria-label="Primary">
-      <RouterLink to="/" class="nav-link" :class="{ active: route.path === '/' }">
-        Merge
+      <RouterLink to="/v1" class="nav-link" :class="{ active: route.name === 'merge' || route.name === 'merge-v1' }">
+        Merge V1
+      </RouterLink>
+      <RouterLink to="/v2" class="nav-link" :class="{ active: route.name === 'merge-v2' }">
+        Merge V2
       </RouterLink>
       <RouterLink
         to="/review"
@@ -34,7 +37,7 @@ const route = useRoute();
       </RouterLink>
     </nav>
   </header>
-  <RouterView />
+  <RouterView :key="route.path" />
 </template>
 
 <style scoped>
@@ -127,5 +130,11 @@ const route = useRoute();
   background: linear-gradient(135deg, #67e8f9, #22d3ee 55%, #14b8a6);
   border-color: transparent;
   box-shadow: 0 0 18px rgba(34, 211, 238, 0.35);
+}
+
+@media (max-width: 640px) {
+  .app-header { height: auto; min-height: 58px; grid-template-columns: 1fr; padding: 10px 14px; gap: 10px; }
+  .app-nav { justify-self: start; flex-wrap: wrap; }
+  .nav-link { padding: 8px 12px; }
 }
 </style>

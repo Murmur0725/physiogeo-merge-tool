@@ -7,7 +7,7 @@ export const finalColumns = [
   "familarity", "temperature", "heart_rate", "Mark"
 ];
 
-const eegRows = {
+export const eegRows = {
   "Attention/注意力": "attention",
   "Relaxation/放松度": "relaxation",
   "Delta/δ波": "delta",
@@ -56,7 +56,7 @@ async function readTextSmart(file) {
   }
 }
 
-function parseCsv(text) {
+export function parseCsv(text) {
   const rows = [];
   let row = [];
   let cell = "";
@@ -438,7 +438,7 @@ function attachLocation(rows, points) {
   });
 }
 
-function toCsv(rows) {
+export function toCsv(rows) {
   const escapeCell = (value) => {
     const text = value === undefined || value === null ? "" : String(value);
     return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
