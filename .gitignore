@@ -2,3 +2,10 @@ node_modules
 dist
 .DS_Store
 *.local
+exports/
+/User Study/outputs/
+
+# Local copies of photos removed from the published route.
+/public/streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3837 2.jpg
+/public/streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3839 2.jpg
+/public/streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3840 2.jpg
