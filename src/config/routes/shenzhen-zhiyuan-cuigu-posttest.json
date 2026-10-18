@@ -7,7 +7,19 @@
     "sketch": "Baidu map screenshot, 2026-10-17",
     "place": "Cuigu Park / Nanshan Zhiyuan, Xueyuan Blvd and Maidixiang Rd",
     "distanceMeters": 1137.4,
-    "note": "The loop starts and ends at the east junction. The park path leads to Maidixiang Rd. Xueyuan Blvd returns to the east junction. Photos coming soon."
+    "note": "The loop starts and ends at the east junction. The park path leads to Maidixiang Rd. Xueyuan Blvd returns to the east junction. Field photo markers are projected to the nearest position on their assigned route section; original WGS84 EXIF GPS coordinates are preserved in originalCoordinates.",
+    "photos": {
+      "capturedDate": "2026-10-18",
+      "count": 12,
+      "coordinateSystem": "WGS84",
+      "assignment": "Nearest-point projection onto assigned route section; original photo GPS preserved in originalCoordinates",
+      "maxRouteDistanceMeters": 38.1,
+      "excludedPhotoIds": [
+        "photo-img_3837 2",
+        "photo-img_3839 2",
+        "photo-img_3840 2"
+      ]
+    }
   },
   "waypoints": [
     {
@@ -168,7 +180,177 @@
     }
   ],
   "segmentSamples": {
-    "Cuigu Park": [],
-    "Xueyuan Blvd": []
+    "Cuigu Park": [
+      {
+        "id": "photo-img_3836 2",
+        "lng": 113.999652933,
+        "lat": 22.597504543,
+        "label": "IMG_3836 2",
+        "thumbUrl": "streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3836 2.jpg",
+        "capturedAt": "2026:10:18 11:02:33",
+        "compassAngle": 222.0,
+        "imageDistanceMeters": 17.0,
+        "originalCoordinates": {
+          "lng": 113.9998167,
+          "lat": 22.597525
+        }
+      },
+      {
+        "id": "photo-img_3838 2",
+        "lng": 113.999266217,
+        "lat": 22.596207674,
+        "label": "IMG_3838 2",
+        "thumbUrl": "streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3838 2.jpg",
+        "capturedAt": "2026:10:18 11:03:32",
+        "compassAngle": 237.6,
+        "imageDistanceMeters": 11.3,
+        "originalCoordinates": {
+          "lng": 113.9991833,
+          "lat": 22.596275
+        }
+      },
+      {
+        "id": "photo-img_3845",
+        "lng": 113.998929471,
+        "lat": 22.59587337,
+        "label": "IMG_3845",
+        "thumbUrl": "streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3845.jpg",
+        "capturedAt": "2026:10:18 11:54:45",
+        "compassAngle": 215.7,
+        "imageDistanceMeters": 0.2,
+        "originalCoordinates": {
+          "lng": 113.99893055555556,
+          "lat": 22.595872222222223
+        }
+      },
+      {
+        "id": "photo-img_3846",
+        "lng": 113.998525755,
+        "lat": 22.595553344,
+        "label": "IMG_3846",
+        "thumbUrl": "streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3846.jpg",
+        "capturedAt": "2026:10:18 11:55:16",
+        "compassAngle": 247.0,
+        "imageDistanceMeters": 12.3,
+        "originalCoordinates": {
+          "lng": 113.99859722222223,
+          "lat": 22.595463888888887
+        }
+      },
+      {
+        "id": "photo-img_3847",
+        "lng": 113.99770331,
+        "lat": 22.594984798,
+        "label": "IMG_3847",
+        "thumbUrl": "streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3847.jpg",
+        "capturedAt": "2026:10:18 11:55:52",
+        "compassAngle": 249.3,
+        "imageDistanceMeters": 10.1,
+        "originalCoordinates": {
+          "lng": 113.99764444444445,
+          "lat": 22.59505833333333
+        }
+      },
+      {
+        "id": "photo-img_3848",
+        "lng": 113.996753271,
+        "lat": 22.594949919,
+        "label": "IMG_3848",
+        "thumbUrl": "streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3848.jpg",
+        "capturedAt": "2026:10:18 11:56:22",
+        "compassAngle": 334.5,
+        "imageDistanceMeters": 20.7,
+        "originalCoordinates": {
+          "lng": 113.99694722222222,
+          "lat": 22.595
+        }
+      },
+      {
+        "id": "photo-img_3849",
+        "lng": 113.996421295,
+        "lat": 22.596205238,
+        "label": "IMG_3849",
+        "thumbUrl": "streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3849.jpg",
+        "capturedAt": "2026:10:18 11:57:07",
+        "compassAngle": 39.1,
+        "imageDistanceMeters": 8.0,
+        "originalCoordinates": {
+          "lng": 113.99649722222222,
+          "lat": 22.596219444444444
+        }
+      }
+    ],
+    "Xueyuan Blvd": [
+      {
+        "id": "photo-img_3851",
+        "lng": 113.99678033,
+        "lat": 22.596609885,
+        "label": "IMG_3851",
+        "thumbUrl": "streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3851.jpg",
+        "capturedAt": "2026:10:18 11:57:34",
+        "compassAngle": 58.9,
+        "imageDistanceMeters": 19.7,
+        "originalCoordinates": {
+          "lng": 113.99690277777778,
+          "lat": 22.59647222222222
+        }
+      },
+      {
+        "id": "photo-img_3841 2",
+        "lng": 113.99755186,
+        "lat": 22.597202048,
+        "label": "IMG_3841 2",
+        "thumbUrl": "streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3841 2.jpg",
+        "capturedAt": "2026:10:18 11:05:13",
+        "compassAngle": 53.9,
+        "imageDistanceMeters": 38.1,
+        "originalCoordinates": {
+          "lng": 113.9977806,
+          "lat": 22.5969306
+        }
+      },
+      {
+        "id": "photo-img_3842 2",
+        "lng": 113.998044722,
+        "lat": 22.597546664,
+        "label": "IMG_3842 2",
+        "thumbUrl": "streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3842 2.jpg",
+        "capturedAt": "2026:10:18 11:05:50",
+        "compassAngle": 58.6,
+        "imageDistanceMeters": 28.1,
+        "originalCoordinates": {
+          "lng": 113.9981778,
+          "lat": 22.597325
+        }
+      },
+      {
+        "id": "photo-img_3843 2",
+        "lng": 113.999103906,
+        "lat": 22.597987492,
+        "label": "IMG_3843 2",
+        "thumbUrl": "streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3843 2.jpg",
+        "capturedAt": "2026:10:18 11:06:29",
+        "compassAngle": 64.3,
+        "imageDistanceMeters": 5.4,
+        "originalCoordinates": {
+          "lng": 113.9991222,
+          "lat": 22.5979417
+        }
+      },
+      {
+        "id": "photo-img_3835 2",
+        "lng": 113.999698412,
+        "lat": 22.598118041,
+        "label": "IMG_3835 2",
+        "thumbUrl": "streetviews/shenzhen-zhiyuan-cuigu-posttest/img_3835 2.jpg",
+        "capturedAt": "2026:10:18 11:02:01",
+        "compassAngle": 134.9,
+        "imageDistanceMeters": 7.2,
+        "originalCoordinates": {
+          "lng": 113.9997194,
+          "lat": 22.5981806
+        }
+      }
+    ]
   }
 }

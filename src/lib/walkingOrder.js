@@ -1,6 +1,6 @@
 export const WALKING_ORDER_OPTIONS = [
-  { value: "clockwise_commercial_first", label: "Clockwise: commercial → green" },
-  { value: "counterclockwise_green_first", label: "Counterclockwise: green → commercial" }
+  { value: "clockwise_commercial_first", label: "Commercial → green" },
+  { value: "counterclockwise_green_first", label: "Green → commercial" }
 ];
 
 export function walkingOrderMetadata(value) {

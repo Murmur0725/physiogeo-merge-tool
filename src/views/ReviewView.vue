@@ -478,14 +478,6 @@ async function submitAll() {
 
       <aside class="survey-pane" aria-label="Segment questionnaire">
         <div class="survey-pane-inner">
-          <nav class="route-survey-nav" aria-label="Route survey sections">
-            <button v-for="segment in segments" :key="segment.id" type="button"
-              :aria-pressed="activeSegmentId === segment.id" :disabled="saving"
-              :style="{ '--segment-color': segment.color }" @click="onSelect(segment.id)">
-              <span>{{ segment.label }}</span>
-              <small>{{ confirmed[segment.id] ? 'Confirmed ✓' : 'Route survey' }}</small>
-            </button>
-          </nav>
           <div v-if="!activeSegment" class="survey-empty">
             <span class="empty-step">Step 2</span>
             <p class="empty-title">No segment selected</p>
@@ -872,15 +864,7 @@ async function submitAll() {
 .usability-submit { display: grid; grid-template-columns: 1fr minmax(180px, 240px); align-items: center; gap: 24px; }
 .usability-submit p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .usability-submit .btn-submit-all { height: auto; min-height: 44px; }
-.route-survey-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; flex: none; margin-bottom: 18px; }
-.route-survey-nav button {
-  display: grid; gap: 5px; text-align: left; padding: 10px 12px; border: 1px solid var(--line);
-  border-radius: 9px; background: rgba(255, 255, 255, .025); color: var(--ink); font: inherit;
-  font-size: 12px; cursor: pointer; min-width: 0;
-}
-.route-survey-nav button[aria-pressed="true"] { border-color: var(--segment-color); background: color-mix(in srgb, var(--segment-color) 8%, transparent); }
-.route-survey-nav small { color: var(--muted); font-size: 10px; }
-.route-survey-nav button:focus-visible, .back-to-segments:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.back-to-segments:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 @media (max-width: 540px) {
   .usability-pane { padding: 18px 16px 28px; }
