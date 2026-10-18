@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from "vue";
+import { captureUpload } from "../lib/uploadFile.js";
 
 const props = defineProps({
   label: { type: String, required: true },
@@ -9,10 +10,12 @@ const props = defineProps({
   file: { type: File, default: null }
 });
 
-const emit = defineEmits(["select"]);
+const emit = defineEmits(["select", "status"]);
 
 const inputEl = ref(null);
 const dragging = ref(false);
+const reading = ref(false);
+const readError = ref("");
 
 const fileSize = computed(() => {
   if (!props.file) return "";
@@ -21,19 +24,39 @@ const fileSize = computed(() => {
 });
 
 function pick() {
+  if (reading.value) return;
   inputEl.value?.click();
 }
 
-function onChange(e) {
-  const f = e.target.files?.[0];
-  if (f) emit("select", f);
-  e.target.value = "";
+async function selectFile(file) {
+  if (!file || reading.value) return;
+  reading.value = true;
+  readError.value = "";
+  emit("status", "reading");
+  emit("select", null);
+  try {
+    emit("select", await captureUpload(file));
+    emit("status", "ready");
+  } catch (error) {
+    readError.value = error.message;
+    emit("status", "error");
+  } finally {
+    reading.value = false;
+  }
 }
 
-function onDrop(e) {
+async function onChange(e) {
+  const input = e.target;
+  try {
+    await selectFile(input.files?.[0]);
+  } finally {
+    input.value = "";
+  }
+}
+
+async function onDrop(e) {
   dragging.value = false;
-  const f = e.dataTransfer?.files?.[0];
-  if (f) emit("select", f);
+  await selectFile(e.dataTransfer?.files?.[0]);
 }
 </script>
 
@@ -41,19 +64,22 @@ function onDrop(e) {
   <div
     class="drop"
     :class="{ filled: file, dragging }"
+    :aria-busy="reading"
     :style="{ '--c': color }"
     @click="pick"
     @dragover.prevent="dragging = true"
     @dragleave="dragging = false"
     @drop.prevent="onDrop"
   >
-    <input ref="inputEl" type="file" :accept="accept" hidden @change="onChange" />
+    <input ref="inputEl" type="file" :accept="accept" :disabled="reading" hidden @change="onChange" />
     <div class="drop-head">
       <span class="dot"></span>
       <span class="drop-label">{{ label }}</span>
       <span v-if="file" class="check">✓</span>
     </div>
-    <div v-if="file" class="file-name">{{ file.name }} <em>{{ fileSize }}</em></div>
+    <div v-if="reading" class="drop-hint" role="status">Reading file…</div>
+    <div v-else-if="readError" class="file-error" role="alert">{{ readError }}</div>
+    <div v-else-if="file" class="file-name">{{ file.name }} <em>{{ fileSize }}</em></div>
     <div v-else class="drop-hint">{{ hint || "Click or drag file here" }}</div>
   </div>
 </template>
@@ -123,5 +149,12 @@ function onDrop(e) {
 .file-name em {
   font-style: normal;
   color: var(--muted);
+}
+
+.file-error {
+  margin-top: 6px;
+  color: #fca5a5;
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 </style>

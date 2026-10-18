@@ -1,6 +1,7 @@
 import { unzipSync } from "fflate";
 import * as XLSX from "xlsx";
 import { eegRows, finalColumns, parseCsv, toCsv } from "./merge.js";
+import { readUploadBytes } from "./uploadFile.js";
 
 const MAX_BYTES = 100 * 1024 * 1024;
 const numeric = (value) => String(value ?? "").trim() === "" ? null : Number.isFinite(Number(value)) ? Number(value) : null;
@@ -161,7 +162,7 @@ function parseEEGRows(inputRows, timeZone, onInfo = () => {}) {
 
 export async function parseEEGFile(file, timeZone) {
   if (!/\.(csv|xlsx|xls)$/i.test(file.name)) throw new Error("Upload an EEG CSV or Excel (.xlsx/.xls) file.");
-  const bytes = new Uint8Array(await file.arrayBuffer());
+  const bytes = new Uint8Array(await readUploadBytes(file));
   let rows, sheetName;
   if (/\.csv$/i.test(file.name)) rows = parseCsv(decode(bytes));
   else {
@@ -258,9 +259,11 @@ export function alignSession(session, eeg, options = {}) {
 export async function runMergeV2(files, log = () => {}, options = {}) {
   if (!files.zip || !files.eeg) throw new Error("Upload the phone session ZIP and EEG CSV or Excel file.");
   if (files.zip.size > MAX_BYTES) throw new Error("ZIP exceeds the 100 MB limit.");
-  const session = extractSession(new Uint8Array(await files.zip.arrayBuffer()));
+  log(`Reading phone session ZIP: ${files.zip.name}.`);
+  const session = extractSession(new Uint8Array(await readUploadBytes(files.zip)));
   log(`V2 session ${session.metadata.id}: ${session.fileCount} files; timezone ${session.metadata.timeZoneIdentifier}.`);
   const eegTimeZone = options.eegTimezone === "chicago" ? "America/Chicago" : "Asia/Shanghai";
+  log(`Reading EEG file: ${files.eeg.name}.`);
   const { samples: eeg, info } = await parseEEGFile(files.eeg, eegTimeZone);
   const result = alignSession(session, eeg, { ...options, eegTimeZone, eegInfo: info });
   log(`EEG samples: ${formatZoned(info.first_sample_unix_ms, eegTimeZone)} → ${formatZoned(info.last_sample_unix_ms, eegTimeZone)} (${eegTimeZone}).`);

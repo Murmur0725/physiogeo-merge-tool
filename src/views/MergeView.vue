@@ -36,6 +36,8 @@ const fileSpecs = [
 ];
 
 const files = reactive({ marks: null, rr: null, eeg: null, gpx: null, hr: null, zip: null });
+const fileStatus = reactive({});
+const visibleFileStatuses = computed(() => visibleFileSpecs.value.map(({ key }) => fileStatus[key]));
 
 const running = ref(false);
 const rows = ref([]);
@@ -69,6 +71,7 @@ const visibleFileSpecs = computed(() => {
 });
 
 const canMerge = computed(() => {
+  if (visibleFileStatuses.value.some((status) => status === "reading" || status === "error")) return false;
   if (subjectId.value.trim() === "" || subjectName.value.trim() === "") return false;
   if (isV2.value && (!files.zip || !files.eeg)) return false;
   if (windowMode.value === "manual") {
@@ -79,6 +82,8 @@ const canMerge = computed(() => {
 });
 
 const gateHint = computed(() => {
+  if (visibleFileStatuses.value.includes("reading")) return "Reading the selected files. Please wait.";
+  if (visibleFileStatuses.value.includes("error")) return "A selected file could not be read. Select it again before generating.";
   if (subjectId.value.trim() === "" || subjectName.value.trim() === "") {
     return "Enter Subjector ID and name.";
   }
@@ -306,6 +311,7 @@ function download() {
           v-bind="spec"
           :file="files[spec.key]"
           @select="(f) => (files[spec.key] = f)"
+          @status="(status) => (fileStatus[spec.key] = status)"
         />
         <p class="hint">
           {{ isV2 ? "Output: one row per second, same columns as V1. Valid RR values are averaged within each second. Missing physiology stays blank; GPS uses the latest usable fix, up to 15 seconds old. Original ZIP and EEG file archive privately with the results. Check the processing log for source timing and signal warnings." : "Missing RR / EEG / GPX / HR leave blank columns. CD download stays local; available files archive privately." }}
